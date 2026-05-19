@@ -33,6 +33,13 @@ migrate_working_dir/
 /build/
 /coverage/
 
+# Local Firebase secrets for development only
+.firebase.secrets.json
+.env
+.env.*
+firebase-debug.log
+scripts/.firebase.secrets.json
+
 # Symbolication related
 app.*.symbols
 

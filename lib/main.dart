@@ -13,6 +13,7 @@ import 'screens/auth/login_screen.dart';
 import 'screens/auth/register_screen.dart';
 import 'screens/my_trips_screen.dart';
 import 'screens/notifications_screen.dart';
+import 'screens/vehicle_screen.dart';
 import 'providers/auth_provider.dart';
 import 'providers/trip_provider.dart';
 
@@ -20,9 +21,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Khởi tạo Firebase
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   // Nạp dữ liệu mẫu vào Firestore (chỉ lần đầu)
   await FirestoreSeeder.seedAll();
@@ -60,6 +59,7 @@ class SmartCarpoolApp extends StatelessWidget {
           '/create-trip': (context) => const CreateTripScreen(),
           '/my-trips': (context) => const MyTripsScreen(),
           '/notifications': (context) => const NotificationsScreen(),
+          '/vehicles': (context) => const VehicleScreen(),
         },
       ),
     );

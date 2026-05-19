@@ -6,6 +6,18 @@ import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, kIsWeb, TargetPlatform;
 
 class DefaultFirebaseOptions {
+  static const _apiKey = String.fromEnvironment('FIREBASE_API_KEY');
+  static const _appId = String.fromEnvironment('FIREBASE_APP_ID');
+  static const _messagingSenderId = String.fromEnvironment(
+    'FIREBASE_MESSAGING_SENDER_ID',
+  );
+  static const _projectId = String.fromEnvironment('FIREBASE_PROJECT_ID');
+  static const _authDomain = String.fromEnvironment('FIREBASE_AUTH_DOMAIN');
+  static const _storageBucket = String.fromEnvironment(
+    'FIREBASE_STORAGE_BUCKET',
+  );
+  static const _iosBundleId = String.fromEnvironment('FIREBASE_IOS_BUNDLE_ID');
+
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
       return web;
@@ -16,11 +28,11 @@ class DefaultFirebaseOptions {
       case TargetPlatform.iOS:
         return ios;
       case TargetPlatform.macOS:
-        return web; // Fallback to web config
+        return web;
       case TargetPlatform.windows:
-        return web; // Fallback to web config
+        return web;
       case TargetPlatform.linux:
-        return web; // Fallback to web config
+        return web;
       default:
         throw UnsupportedError(
           'DefaultFirebaseOptions are not supported for this platform.',
@@ -29,32 +41,30 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyC1K7ltthSp48iHqioVv6xleAHIq6pAbik',
-    appId: '1:612916804260:web:cade30121594ab3dea8431',
-    messagingSenderId: '612916804260',
-    projectId: 'smart-carpool-connect',
-    authDomain: 'smart-carpool-connect.firebaseapp.com',
-    storageBucket: 'smart-carpool-connect.firebasestorage.app',
+    apiKey: _apiKey,
+    appId: _appId,
+    messagingSenderId: _messagingSenderId,
+    projectId: _projectId,
+    authDomain: _authDomain,
+    storageBucket: _storageBucket,
   );
 
-  // Android config - sẽ cập nhật sau khi thêm Android app
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyC1K7ltthSp48iHqioVv6xleAHIq6pAbik',
-    appId: '1:612916804260:web:cade30121594ab3dea8431',
-    messagingSenderId: '612916804260',
-    projectId: 'smart-carpool-connect',
-    authDomain: 'smart-carpool-connect.firebaseapp.com',
-    storageBucket: 'smart-carpool-connect.firebasestorage.app',
+    apiKey: _apiKey,
+    appId: _appId,
+    messagingSenderId: _messagingSenderId,
+    projectId: _projectId,
+    authDomain: _authDomain,
+    storageBucket: _storageBucket,
   );
 
-  // iOS config - sẽ cập nhật sau khi thêm iOS app
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyC1K7ltthSp48iHqioVv6xleAHIq6pAbik',
-    appId: '1:612916804260:web:cade30121594ab3dea8431',
-    messagingSenderId: '612916804260',
-    projectId: 'smart-carpool-connect',
-    authDomain: 'smart-carpool-connect.firebaseapp.com',
-    storageBucket: 'smart-carpool-connect.firebasestorage.app',
-    iosBundleId: 'com.example.smartCarpoolConnect',
+    apiKey: _apiKey,
+    appId: _appId,
+    messagingSenderId: _messagingSenderId,
+    projectId: _projectId,
+    authDomain: _authDomain,
+    storageBucket: _storageBucket,
+    iosBundleId: _iosBundleId,
   );
 }

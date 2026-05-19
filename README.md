@@ -2,6 +2,16 @@
 
 A new Flutter project.
 
+## Firebase Secrets
+
+For local development, copy [`.firebase.secrets.json.example`](./.firebase.secrets.json.example) to `.firebase.secrets.json` and fill in your Firebase values.
+
+Run the app with:
+
+```powershell
+./scripts/run_with_firebase_secrets.ps1
+```
+
 ## Getting Started
 
 This project is a starting point for a Flutter application.
