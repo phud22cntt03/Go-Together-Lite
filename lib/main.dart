@@ -15,6 +15,7 @@ import 'screens/my_trips_screen.dart';
 import 'screens/notifications_screen.dart';
 import 'screens/vehicle_screen.dart';
 import 'providers/auth_provider.dart';
+import 'providers/booking_provider.dart';
 import 'providers/trip_provider.dart';
 
 void main() async {
@@ -43,6 +44,7 @@ class SmartCarpoolApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => BookingProvider()),
         ChangeNotifierProvider(create: (_) => TripProvider()),
       ],
       child: MaterialApp(

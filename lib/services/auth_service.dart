@@ -1,5 +1,9 @@
+import 'dart:convert';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import '../models/user.dart';
 
 class AuthService {
@@ -72,5 +76,53 @@ class AuthService {
       'avatarUrl': user.avatarUrl,
     });
     await _auth.currentUser?.updateDisplayName(user.fullName);
+    if (user.avatarUrl != null && !user.avatarUrl!.startsWith('data:image/')) {
+      await _auth.currentUser?.updatePhotoURL(user.avatarUrl);
+    }
+  }
+
+  static Future<String> uploadAvatarBytes({
+    required String userId,
+    required Uint8List bytes,
+    required String fileName,
+  }) async {
+    final ext = fileName.split('.').last.toLowerCase();
+    final contentType = switch (ext) {
+      'png' => 'image/png',
+      'webp' => 'image/webp',
+      'gif' => 'image/gif',
+      _ => 'image/jpeg',
+    };
+    if (kIsWeb) {
+      return _buildFirestoreAvatarDataUrl(bytes, contentType);
+    }
+
+    final ref = FirebaseStorage.instance
+        .ref()
+        .child('avatars')
+        .child(userId)
+        .child(fileName);
+
+    try {
+      await ref
+          .putData(bytes, SettableMetadata(contentType: contentType))
+          .timeout(const Duration(seconds: 10));
+      return ref.getDownloadURL().timeout(const Duration(seconds: 10));
+    } catch (_) {
+      return _buildFirestoreAvatarDataUrl(bytes, contentType);
+    }
+  }
+
+  static String _buildFirestoreAvatarDataUrl(
+    Uint8List bytes,
+    String contentType,
+  ) {
+    const maxFirestoreSafeBytes = 650 * 1024;
+    if (bytes.lengthInBytes > maxFirestoreSafeBytes) {
+      throw Exception(
+        'Anh qua lon. Hay chon anh nho hon 650KB hoac nang cap Firebase Storage.',
+      );
+    }
+    return 'data:$contentType;base64,${base64Encode(bytes)}';
   }
 }

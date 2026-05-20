@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../theme/app_theme.dart';
-import '../providers/trip_provider.dart';
-import '../providers/auth_provider.dart';
-import '../models/booking.dart';
 import '../data/mock_data.dart';
+import '../models/booking.dart';
+import '../providers/auth_provider.dart';
+import '../providers/booking_provider.dart';
+import '../providers/trip_provider.dart';
+import '../theme/app_theme.dart';
+import 'driver_bookings_screen.dart';
 import 'rating_screen.dart';
 
 class MyTripsScreen extends StatefulWidget {
@@ -35,14 +37,14 @@ class _MyTripsScreenState extends State<MyTripsScreen>
   Widget build(BuildContext context) {
     final authUser = context.watch<AuthProvider>().currentUser;
     final tripProvider = context.watch<TripProvider>();
+    final bookingProvider = context.watch<BookingProvider>();
 
     if (authUser != null && authUser.id != _syncedUserId) {
       _syncedUserId = authUser.id;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        final provider = context.read<TripProvider>();
-        provider.watchBookings(authUser.id);
-        provider.loadDriverTrips(authUser.id);
+        context.read<BookingProvider>().watchMyBookings(authUser.id);
+        context.read<TripProvider>().loadDriverTrips(authUser.id);
       });
     }
 
@@ -51,7 +53,6 @@ class _MyTripsScreenState extends State<MyTripsScreen>
       body: SafeArea(
         child: Column(
           children: [
-            // Header
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
               child: Row(
@@ -72,14 +73,13 @@ class _MyTripsScreenState extends State<MyTripsScreen>
                   Text(
                     'Chuyến đi của tôi',
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+                          fontWeight: FontWeight.w700,
+                        ),
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 20),
-            // Tabs
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Container(
@@ -114,8 +114,8 @@ class _MyTripsScreenState extends State<MyTripsScreen>
               child: TabBarView(
                 controller: _tabCtrl,
                 children: [
-                  _buildBookingList(tripProvider),
-                  _buildCreatedTripList(tripProvider),
+                  _buildBookingList(context, bookingProvider, tripProvider),
+                  _buildCreatedTripList(context, tripProvider),
                 ],
               ),
             ),
@@ -125,36 +125,41 @@ class _MyTripsScreenState extends State<MyTripsScreen>
     );
   }
 
-  Widget _buildBookingList(TripProvider provider) {
-    final bookings = provider.myBookings;
+  Widget _buildBookingList(
+    BuildContext context,
+    BookingProvider bookingProvider,
+    TripProvider tripProvider,
+  ) {
+    final bookings = bookingProvider.myBookings;
     if (bookings.isEmpty) {
       return _buildEmptyState(
         'Bạn chưa đặt chuyến nào',
         Icons.confirmation_number_outlined,
       );
     }
+
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       itemCount: bookings.length,
       itemBuilder: (ctx, i) {
-        final b = bookings[i];
+        final booking = bookings[i];
         final trip =
-            provider.getTripById(b.tripId) ??
+            tripProvider.getTripById(booking.tripId) ??
             MockData.tripHistory.firstWhere(
-              (t) => t.id == b.tripId,
-              orElse: () => MockData.tripHistory[0],
+              (t) => t.id == booking.tripId,
+              orElse: () => MockData.tripHistory.first,
             );
         return _BookingCard(
-          booking: b,
+          booking: booking,
           trip: trip,
-          onCancel: () => _confirmCancel(b),
-          onRate: b.isCompleted ? () => _openRating(b, trip) : null,
+          onCancel: () => _confirmCancel(context, booking),
+          onRate: booking.isCompleted ? () => _openRating(booking, trip) : null,
         );
       },
     );
   }
 
-  Widget _buildCreatedTripList(TripProvider provider) {
+  Widget _buildCreatedTripList(BuildContext context, TripProvider provider) {
     final trips = provider.myCreatedTrips;
     if (trips.isEmpty) {
       return _buildEmptyState(
@@ -162,11 +167,12 @@ class _MyTripsScreenState extends State<MyTripsScreen>
         Icons.directions_car_outlined,
       );
     }
+
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       itemCount: trips.length,
       itemBuilder: (ctx, i) {
-        final t = trips[i];
+        final trip = trips[i];
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(16),
@@ -175,43 +181,77 @@ class _MyTripsScreenState extends State<MyTripsScreen>
             borderRadius: AppTheme.radiusXxl,
             boxShadow: AppTheme.cardShadow,
           ),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryContainer.withValues(alpha: 0.15),
-                  borderRadius: AppTheme.radiusLg,
-                ),
-                child: const Icon(
-                  Icons.directions_car,
-                  color: AppTheme.primary,
-                ),
+              Row(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryContainer.withValues(alpha: 0.15),
+                      borderRadius: AppTheme.radiusLg,
+                    ),
+                    child: const Icon(
+                      Icons.directions_car,
+                      color: AppTheme.primary,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${trip.pickupLocation} → ${trip.dropoffLocation}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${trip.pickupTime} · ${trip.availableSeats} chỗ trống · ${_formatPrice(trip.pricePerSeat)}/ghế',
+                          style: TextStyle(
+                            color: AppTheme.outline,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  _StatusChip(status: trip.status),
+                ],
               ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${t.pickupLocation} → ${t.dropoffLocation}',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                height: 38,
+                child: OutlinedButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => DriverBookingsScreen(trip: trip),
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                    );
+                  },
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.primary,
+                    side: const BorderSide(color: AppTheme.primary),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: AppTheme.radiusLg,
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${t.pickupTime} · ${t.availableSeats} ghế trống · ${_formatPrice(t.pricePerSeat)}/ghế',
-                      style: TextStyle(color: AppTheme.outline, fontSize: 12),
-                    ),
-                  ],
+                  ),
+                  child: const Text(
+                    'Xem bookings của chuyến',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
                 ),
               ),
-              _StatusChip(status: t.status),
             ],
           ),
         );
@@ -234,10 +274,7 @@ class _MyTripsScreenState extends State<MyTripsScreen>
             child: Icon(icon, size: 36, color: AppTheme.outline),
           ),
           const SizedBox(height: 16),
-          Text(
-            message,
-            style: TextStyle(color: AppTheme.outline, fontSize: 15),
-          ),
+          Text(message, style: TextStyle(color: AppTheme.outline, fontSize: 15)),
           const SizedBox(height: 8),
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -254,7 +291,7 @@ class _MyTripsScreenState extends State<MyTripsScreen>
     );
   }
 
-  void _confirmCancel(Booking booking) {
+  void _confirmCancel(BuildContext context, Booking booking) {
     if (!booking.isPending && !booking.isConfirmed) return;
     showModalBottomSheet(
       context: context,
@@ -262,7 +299,12 @@ class _MyTripsScreenState extends State<MyTripsScreen>
       backgroundColor: Colors.transparent,
       builder: (_) => _CancelBookingSheet(
         onConfirm: (reason) {
-          context.read<TripProvider>().cancelBooking(booking.id, reason);
+          context.read<BookingProvider>().cancelBooking(
+                bookingId: booking.id,
+                tripId: booking.tripId,
+                seatsToRestore: booking.seatsBooked,
+                reason: reason,
+              );
           Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -326,9 +368,7 @@ class _BookingCard extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 20,
-                backgroundColor: AppTheme.primaryContainer.withValues(
-                  alpha: 0.2,
-                ),
+                backgroundColor: AppTheme.primaryContainer.withValues(alpha: 0.2),
                 child: Text(
                   trip.driverName.substring(0, 1),
                   style: const TextStyle(
@@ -460,10 +500,7 @@ class _BookingCard extends StatelessWidget {
           const SizedBox(width: 4),
           Text(
             text,
-            style: const TextStyle(
-              fontSize: 12,
-              color: AppTheme.onSurfaceVariant,
-            ),
+            style: const TextStyle(fontSize: 12, color: AppTheme.onSurfaceVariant),
           ),
         ],
       ),
@@ -471,9 +508,9 @@ class _BookingCard extends StatelessWidget {
   }
 
   String _fmt(int price) => price.toString().replaceAllMapped(
-    RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-    (m) => '${m[1]}.',
-  );
+        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+        (m) => '${m[1]}.',
+      );
 }
 
 class _StatusChip extends StatelessWidget {

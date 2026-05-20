@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/booking.dart';
 import '../models/trip.dart';
-import '../services/booking_service.dart';
+import '../providers/booking_provider.dart';
 import '../theme/app_theme.dart';
 
 class RatingScreen extends StatefulWidget {
@@ -136,7 +137,7 @@ class _RatingScreenState extends State<RatingScreen> {
                         final messenger = ScaffoldMessenger.of(context);
                         setState(() => _saving = true);
                         try {
-                          await BookingService.rateTrip(
+                          await context.read<BookingProvider>().rateTrip(
                             bookingId: widget.booking.id,
                             passengerRating: _rating,
                             comment: _commentCtrl.text.trim().isEmpty

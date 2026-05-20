@@ -6,7 +6,8 @@
       "request": "launch",
       "type": "dart",
       "program": "lib/main.dart",
-      "args": ["--dart-define-from-file=.firebase.secrets.json"]
+      "deviceId": "chrome",
+      "toolArgs": ["--dart-define-from-file=.firebase.secrets.json"]
     }
   ]
 }

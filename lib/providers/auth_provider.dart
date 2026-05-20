@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 import '../models/user.dart';
 import '../services/auth_service.dart';
 
@@ -14,15 +14,12 @@ class AuthProvider extends ChangeNotifier {
   String? get error => _error;
 
   AuthProvider() {
-    // Theo dõi trạng thái auth Firebase
     AuthService.authStateChanges.listen((User? firebaseUser) async {
       if (firebaseUser != null) {
-        // Đã đăng nhập — lấy profile từ Firestore
         _currentUser = await AuthService.getCurrentUserProfile();
-        // Fallback nếu Firestore chưa có (người dùng mới)
         _currentUser ??= AppUser(
           id: firebaseUser.uid,
-          fullName: firebaseUser.displayName ?? 'Người dùng',
+          fullName: firebaseUser.displayName ?? 'Nguoi dung',
           email: firebaseUser.email ?? '',
           phone: '',
           rating: 5.0,
@@ -38,7 +35,6 @@ class AuthProvider extends ChangeNotifier {
     });
   }
 
-  // ─── Đăng nhập bằng Firebase Auth ───────────────────────────────
   Future<bool> login(String email, String password) async {
     _setLoading(true);
     _error = null;
@@ -51,13 +47,12 @@ class AuthProvider extends ChangeNotifier {
       _setLoading(false);
       return false;
     } catch (e) {
-      _error = 'Đã xảy ra lỗi: $e';
+      _error = 'Da xay ra loi: $e';
       _setLoading(false);
       return false;
     }
   }
 
-  // ─── Đăng ký ────────────────────────────────────────────────────
   Future<bool> register({
     required String fullName,
     required String email,
@@ -80,20 +75,18 @@ class AuthProvider extends ChangeNotifier {
       _setLoading(false);
       return false;
     } catch (e) {
-      _error = 'Đã xảy ra lỗi: $e';
+      _error = 'Da xay ra loi: $e';
       _setLoading(false);
       return false;
     }
   }
 
-  // ─── Đăng xuất ──────────────────────────────────────────────────
   Future<void> logout() async {
     await AuthService.logout();
     _currentUser = null;
     notifyListeners();
   }
 
-  // ─── Quên mật khẩu ──────────────────────────────────────────────
   Future<bool> sendPasswordReset(String email) async {
     _setLoading(true);
     try {
@@ -101,21 +94,23 @@ class AuthProvider extends ChangeNotifier {
       _setLoading(false);
       return true;
     } catch (e) {
-      _error = 'Không thể gửi email đặt lại mật khẩu';
+      _error = 'Khong the gui email dat lai mat khau';
       _setLoading(false);
       return false;
     }
   }
 
-  // ─── Cập nhật profile ───────────────────────────────────────────
-  Future<void> updateProfile(AppUser updated) async {
+  Future<bool> updateProfile(AppUser updated) async {
     try {
       await AuthService.updateProfile(updated);
       _currentUser = updated;
+      _error = null;
       notifyListeners();
+      return true;
     } catch (e) {
-      _error = 'Không thể cập nhật hồ sơ';
+      _error = 'Khong the cap nhat ho so: $e';
       notifyListeners();
+      return false;
     }
   }
 
@@ -124,27 +119,26 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ─── Map mã lỗi Firebase sang tiếng Việt ───────────────────────
   String _mapFirebaseError(String code) {
     switch (code) {
       case 'user-not-found':
-        return 'Không tìm thấy tài khoản với email này';
+        return 'Khong tim thay tai khoan voi email nay';
       case 'wrong-password':
-        return 'Mật khẩu không chính xác';
+        return 'Mat khau khong chinh xac';
       case 'invalid-email':
-        return 'Email không hợp lệ';
+        return 'Email khong hop le';
       case 'user-disabled':
-        return 'Tài khoản đã bị vô hiệu hóa';
+        return 'Tai khoan da bi vo hieu hoa';
       case 'email-already-in-use':
-        return 'Email này đã được sử dụng';
+        return 'Email nay da duoc su dung';
       case 'weak-password':
-        return 'Mật khẩu quá yếu (tối thiểu 6 ký tự)';
+        return 'Mat khau qua yeu, toi thieu 6 ky tu';
       case 'too-many-requests':
-        return 'Quá nhiều yêu cầu. Vui lòng thử lại sau';
+        return 'Qua nhieu yeu cau. Vui long thu lai sau';
       case 'invalid-credential':
-        return 'Email hoặc mật khẩu không đúng';
+        return 'Email hoac mat khau khong dung';
       default:
-        return 'Lỗi xác thực ($code)';
+        return 'Loi xac thuc ($code)';
     }
   }
 }
