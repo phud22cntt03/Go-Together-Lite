@@ -9,21 +9,16 @@ class VehicleService {
     return _db
         .collection(_col)
         .where('ownerId', isEqualTo: ownerId)
-        .orderBy('createdAt', descending: true)
         .snapshots()
-        .map(
-          (snap) =>
-              snap.docs.map((d) => Vehicle.fromMap(d.id, d.data())).toList(),
-        );
+        .map((snap) => _sortVehicles(snap.docs));
   }
 
   static Future<List<Vehicle>> getVehicles(String ownerId) async {
     final snap = await _db
         .collection(_col)
         .where('ownerId', isEqualTo: ownerId)
-        .orderBy('createdAt', descending: true)
         .get();
-    return snap.docs.map((d) => Vehicle.fromMap(d.id, d.data())).toList();
+    return _sortVehicles(snap.docs);
   }
 
   static Future<Vehicle> createVehicle({
@@ -96,5 +91,29 @@ class VehicleService {
     }
 
     await batch.commit();
+  }
+
+  static List<Vehicle> _sortVehicles(
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+  ) {
+    final vehicles = docs.map((d) => Vehicle.fromMap(d.id, d.data())).toList();
+
+    vehicles.sort((a, b) {
+      final createdCompare =
+          (b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0)).compareTo(
+            a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0),
+          );
+      if (createdCompare != 0) {
+        return createdCompare;
+      }
+
+      if (a.isDefault != b.isDefault) {
+        return a.isDefault ? -1 : 1;
+      }
+
+      return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+    });
+
+    return vehicles;
   }
 }

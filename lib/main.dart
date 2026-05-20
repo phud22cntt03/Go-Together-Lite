@@ -5,7 +5,6 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'services/firestore_seeder.dart';
 import 'theme/app_theme.dart';
-import 'screens/welcome_screen.dart';
 import 'screens/main_screen.dart';
 import 'screens/trip_detail_screen.dart';
 import 'screens/create_trip_screen.dart';
@@ -53,7 +52,7 @@ class SmartCarpoolApp extends StatelessWidget {
         theme: AppTheme.lightTheme,
         initialRoute: '/',
         routes: {
-          '/': (context) => const WelcomeScreen(),
+          '/': (context) => const AuthGate(),
           '/login': (context) => const LoginScreen(),
           '/register': (context) => const RegisterScreen(),
           '/main': (context) => const MainScreen(),
@@ -65,5 +64,24 @@ class SmartCarpoolApp extends StatelessWidget {
         },
       ),
     );
+  }
+}
+
+class AuthGate extends StatelessWidget {
+  const AuthGate({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+
+    if (!auth.isInitialized) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    if (auth.isLoggedIn) {
+      return const MainScreen();
+    }
+
+    return const LoginScreen();
   }
 }

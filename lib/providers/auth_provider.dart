@@ -6,10 +6,12 @@ import '../services/auth_service.dart';
 class AuthProvider extends ChangeNotifier {
   AppUser? _currentUser;
   bool _isLoading = false;
+  bool _isInitialized = false;
   String? _error;
 
   AppUser? get currentUser => _currentUser;
   bool get isLoading => _isLoading;
+  bool get isInitialized => _isInitialized;
   bool get isLoggedIn => _currentUser != null;
   String? get error => _error;
 
@@ -31,6 +33,7 @@ class AuthProvider extends ChangeNotifier {
       } else {
         _currentUser = null;
       }
+      _isInitialized = true;
       notifyListeners();
     });
   }
