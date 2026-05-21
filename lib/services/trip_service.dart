@@ -17,12 +17,14 @@ class TripService {
         );
   }
 
+  //TÌm trip theo id
   static Future<Trip?> getTripById(String id) async {
     final doc = await _db.collection(_col).doc(id).get();
     if (!doc.exists) return null;
     return Trip.fromMap(doc.id, doc.data()!);
   }
 
+  // Tìm kiếm trip với các tiêu chí: điểm đi, điểm đến, loại xe, số chỗ tối thiểu, sắp xếp
   static Future<List<Trip>> searchTrips({
     String? fromQuery,
     String? toQuery,
@@ -82,7 +84,7 @@ class TripService {
 
     return results;
   }
-
+  // Tạo trip mới
   static Future<Trip> createTrip(Trip trip, String driverId) async {
     final ref = _db.collection(_col).doc();
     final data = trip.toMap();
@@ -101,7 +103,7 @@ class TripService {
       createdAt: DateTime.now(),
     );
   }
-
+  // Lấy danh sách trip của tài xế
   static Future<List<Trip>> getDriverTrips(String driverId) async {
     final snap = await _db
         .collection(_col)
@@ -110,7 +112,7 @@ class TripService {
         .get();
     return snap.docs.map((d) => Trip.fromMap(d.id, d.data())).toList();
   }
-
+  //Hủy trip
   static Future<void> cancelTrip(String tripId) async {
     await _db.collection(_col).doc(tripId).update({'status': 'cancelled'});
   }

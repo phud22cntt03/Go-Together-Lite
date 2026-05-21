@@ -4,7 +4,7 @@ A new Flutter project.
 
 ## Firebase Secrets
 
-For local development, copy [`.firebase.secrets.json.example`](./.firebase.secrets.json.example) to `.firebase.secrets.json` and fill in your Firebase values.
+For local development, copy [`.firebase.secrets.json.example`](.firebase.secrets.json) to `.firebase.secrets.json` and fill in your Firebase values.
 
 Run the app with:
 
