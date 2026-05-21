@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../models/vehicle.dart';
 import '../providers/auth_provider.dart';
 import '../services/vehicle_service.dart';
@@ -297,6 +298,7 @@ class _VehicleFormSheetState extends State<_VehicleFormSheet> {
   late final TextEditingController _plateCtrl;
   late final TextEditingController _colorCtrl;
   late final TextEditingController _seatsCtrl;
+  late final bool _isEditing;
   late String _type;
   late bool _isDefault;
   bool _saving = false;
@@ -304,13 +306,16 @@ class _VehicleFormSheetState extends State<_VehicleFormSheet> {
   @override
   void initState() {
     super.initState();
-    final v = widget.existing;
-    _nameCtrl = TextEditingController(text: v?.name ?? '');
-    _plateCtrl = TextEditingController(text: v?.licensePlate ?? '');
-    _colorCtrl = TextEditingController(text: v?.color ?? 'Trắng');
-    _seatsCtrl = TextEditingController(text: (v?.seats ?? 4).toString());
-    _type = v?.type ?? 'car';
-    _isDefault = v?.isDefault ?? false;
+    final vehicle = widget.existing;
+    _isEditing = vehicle != null;
+    _nameCtrl = TextEditingController(text: vehicle?.name ?? '');
+    _plateCtrl = TextEditingController(text: vehicle?.licensePlate ?? '');
+    _colorCtrl = TextEditingController(text: vehicle?.color ?? 'Trắng');
+    _type = vehicle?.type ?? 'car';
+    _seatsCtrl = TextEditingController(
+      text: (vehicle?.seats ?? _defaultSeatsForType(_type)).toString(),
+    );
+    _isDefault = vehicle?.isDefault ?? false;
   }
 
   @override
@@ -368,8 +373,11 @@ class _VehicleFormSheetState extends State<_VehicleFormSheet> {
             _field(
               _seatsCtrl,
               'Số chỗ',
-              '4',
+              _defaultSeatsForType(_type).toString(),
               keyboardType: TextInputType.number,
+              helperText: _type == 'motorbike'
+                  ? 'Xe máy thường là 2 chỗ'
+                  : 'Ô tô thường là 5 hoặc 7 chỗ',
             ),
             const SizedBox(height: 16),
             Row(
@@ -425,6 +433,7 @@ class _VehicleFormSheetState extends State<_VehicleFormSheet> {
     String label,
     String hint, {
     TextInputType keyboardType = TextInputType.text,
+    String? helperText,
   }) {
     return TextFormField(
       controller: controller,
@@ -432,6 +441,7 @@ class _VehicleFormSheetState extends State<_VehicleFormSheet> {
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
+        helperText: helperText,
         filled: true,
         fillColor: AppTheme.surfaceContainerLow,
         border: OutlineInputBorder(
@@ -443,6 +453,20 @@ class _VehicleFormSheetState extends State<_VehicleFormSheet> {
         if (value == null || value.trim().isEmpty) {
           return 'Không được để trống';
         }
+
+        if (controller == _seatsCtrl) {
+          final seats = int.tryParse(value.trim());
+          if (seats == null || seats <= 0) {
+            return 'Số chỗ không hợp lệ';
+          }
+          if (_type == 'motorbike' && seats > 2) {
+            return 'Xe máy chỉ nên để tối đa 2 chỗ';
+          }
+          if (_type == 'car' && seats < 4) {
+            return 'Ô tô nên từ 4 chỗ trở lên';
+          }
+        }
+
         return null;
       },
     );
@@ -453,7 +477,23 @@ class _VehicleFormSheetState extends State<_VehicleFormSheet> {
     return ChoiceChip(
       label: Text(label),
       selected: selected,
-      onSelected: (_) => setState(() => _type = value),
+      onSelected: (_) {
+        setState(() {
+          _type = value;
+          final currentSeats = int.tryParse(_seatsCtrl.text.trim());
+
+          if (!_isEditing || currentSeats == null) {
+            _seatsCtrl.text = _defaultSeatsForType(value).toString();
+            return;
+          }
+
+          if (value == 'motorbike' && currentSeats > 2) {
+            _seatsCtrl.text = '2';
+          } else if (value == 'car' && currentSeats < 4) {
+            _seatsCtrl.text = _defaultSeatsForType(value).toString();
+          }
+        });
+      },
       selectedColor: AppTheme.primary.withValues(alpha: 0.12),
       labelStyle: TextStyle(
         color: selected ? AppTheme.primary : AppTheme.onSurface,
@@ -468,7 +508,8 @@ class _VehicleFormSheetState extends State<_VehicleFormSheet> {
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final seats = int.tryParse(_seatsCtrl.text.trim()) ?? 4;
+    final seats =
+        int.tryParse(_seatsCtrl.text.trim()) ?? _defaultSeatsForType(_type);
     setState(() => _saving = true);
 
     try {
@@ -509,8 +550,14 @@ class _VehicleFormSheetState extends State<_VehicleFormSheet> {
         ).showSnackBar(SnackBar(content: Text('Không thể lưu xe: $e')));
       }
     } finally {
-      if (mounted) setState(() => _saving = false);
+      if (mounted) {
+        setState(() => _saving = false);
+      }
     }
+  }
+
+  int _defaultSeatsForType(String type) {
+    return type == 'motorbike' ? 2 : 5;
   }
 }
 
