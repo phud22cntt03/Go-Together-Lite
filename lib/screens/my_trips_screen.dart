@@ -165,7 +165,10 @@ class _MyTripsScreenState extends State<MyTripsScreen>
           booking: booking,
           trip: trip,
           onCancel: () => _confirmCancel(context, booking),
-          onRate: booking.isCompleted ? () => _openRating(booking, trip) : null,
+          onRate: (booking.isCompleted || _canRateTrip(trip, booking))
+              ? () => _openRating(booking, trip)
+              : null,
+          canRateNow: _canRateTrip(trip, booking),
         );
       },
     );
@@ -343,6 +346,43 @@ class _MyTripsScreenState extends State<MyTripsScreen>
     );
   }
 
+  bool _canRateTrip(dynamic trip, Booking booking) {
+    if (booking.isCancelled) return false;
+    if (booking.isCompleted) return true;
+    if (!booking.isConfirmed && !booking.isPending) return false;
+
+    final rawTime =
+        (trip.dropoffTime as String?)?.isNotEmpty == true
+        ? trip.dropoffTime as String
+        : trip.pickupTime as String;
+    final tripEndTime = _parseTripTime(rawTime);
+    if (tripEndTime == null) return false;
+
+    return DateTime.now().isAfter(tripEndTime);
+  }
+
+  DateTime? _parseTripTime(String rawTime) {
+    final match = RegExp(
+      r'(\d{1,2}):(\d{2})\s*-\s*(\d{1,2})/(\d{1,2})',
+    ).firstMatch(rawTime);
+    if (match == null) return null;
+
+    final now = DateTime.now();
+    final hour = int.tryParse(match.group(1) ?? '');
+    final minute = int.tryParse(match.group(2) ?? '');
+    final day = int.tryParse(match.group(3) ?? '');
+    final month = int.tryParse(match.group(4) ?? '');
+    if (hour == null || minute == null || day == null || month == null) {
+      return null;
+    }
+
+    var parsed = DateTime(now.year, month, day, hour, minute);
+    if (parsed.isAfter(now.add(const Duration(days: 180)))) {
+      parsed = DateTime(now.year - 1, month, day, hour, minute);
+    }
+    return parsed;
+  }
+
   String _formatPrice(int price) => '${(price / 1000).toStringAsFixed(0)}k';
 }
 
@@ -351,12 +391,14 @@ class _BookingCard extends StatelessWidget {
   final dynamic trip;
   final VoidCallback onCancel;
   final VoidCallback? onRate;
+  final bool canRateNow;
 
   const _BookingCard({
     required this.booking,
     required this.trip,
     required this.onCancel,
     this.onRate,
+    this.canRateNow = false,
   });
 
   @override
@@ -444,7 +486,7 @@ class _BookingCard extends StatelessWidget {
               ),
             ],
           ),
-          if (booking.isPending || booking.isConfirmed) ...[
+          if ((booking.isPending || booking.isConfirmed) && !canRateNow) ...[
             const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
@@ -464,7 +506,7 @@ class _BookingCard extends StatelessWidget {
                 ),
               ),
             ),
-          ] else if (booking.isCompleted) ...[
+          ] else if (booking.isCompleted || canRateNow) ...[
             const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
@@ -486,6 +528,13 @@ class _BookingCard extends StatelessWidget {
                 ),
               ),
             ),
+            if (!booking.isCompleted && booking.passengerRating == null) ...[
+              const SizedBox(height: 8),
+              const Text(
+                'Bạn có thể đánh giá khi chuyến đã qua giờ kết thúc.',
+                style: TextStyle(fontSize: 12, color: AppTheme.outline),
+              ),
+            ],
           ],
         ],
       ),

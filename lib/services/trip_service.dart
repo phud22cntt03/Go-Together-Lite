@@ -9,7 +9,7 @@ class TripService {
     return _db
         .collection(_col)
         .where('status', isEqualTo: 'available')
-        .limit(30)
+        .limit(100)
         .snapshots()
         .map(
           (snap) => _sortTrips(

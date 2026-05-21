@@ -7,6 +7,8 @@ import 'package:provider/provider.dart';
 
 import '../models/user.dart';
 import '../providers/auth_provider.dart';
+import '../providers/booking_provider.dart';
+import '../providers/trip_provider.dart';
 import '../services/auth_service.dart';
 import '../services/profile_service.dart';
 import '../theme/app_theme.dart';
@@ -25,64 +27,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Uint8List? _localAvatarBytes;
   Future<ProfileOverview>? _overviewFuture;
   String? _overviewUserId;
-
-  Future<void> _pickAndUploadAvatar(AppUser user) async {
-    if (_uploadingAvatar) return;
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.image,
-      withData: true,
-    );
-    if (result == null || result.files.isEmpty) return;
-
-    final file = result.files.first;
-    final Uint8List? bytes = file.bytes;
-    if (bytes == null) return;
-
-    setState(() {
-      _localAvatarBytes = bytes;
-      _uploadingAvatar = true;
-    });
-    try {
-      final ext = file.extension ?? 'jpg';
-      final url = await AuthService.uploadAvatarBytes(
-        userId: user.id,
-        bytes: bytes,
-        fileName: 'avatar.$ext',
-      );
-      if (!mounted) return;
-      final auth = context.read<AuthProvider>();
-      final ok = await auth.updateProfile(user.copyWith(avatarUrl: url));
-      if (!ok) {
-        throw Exception(auth.error ?? 'Không thể cập nhật avatar');
-      }
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Đã cập nhật ảnh đại diện')));
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Không upload được avatar: $e')));
-    } finally {
-      if (mounted) {
-        setState(() => _uploadingAvatar = false);
-      }
-    }
-  }
+  String? _overviewDataKey;
+  String? _syncedUserId;
 
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthProvider>().currentUser;
-    _ensureOverviewLoaded(user);
+    final bookingProvider = context.watch<BookingProvider>();
+    final tripProvider = context.watch<TripProvider>();
+
+    if (user != null && user.id != _syncedUserId) {
+      _syncedUserId = user.id;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        context.read<BookingProvider>().watchMyBookings(user.id);
+        context.read<TripProvider>().loadDriverTrips(user.id);
+      });
+    }
+
+    final overviewDataKey = [
+      bookingProvider.myBookings.length,
+      bookingProvider.myBookings.where((b) => b.isCompleted).length,
+      bookingProvider.myBookings.where((b) => b.isCancelled).length,
+      tripProvider.myCreatedTrips.length,
+    ].join(':');
+    _ensureOverviewLoaded(user, overviewDataKey);
 
     final displayName = user?.fullName ?? 'Người dùng';
     final initials = user?.initials ?? 'U';
     final rating = user?.rating.toStringAsFixed(1) ?? '5.0';
-    final avatarUrl = user?.avatarUrl;
     final avatarImage = _localAvatarBytes != null
         ? MemoryImage(_localAvatarBytes!)
-        : _avatarImage(avatarUrl);
+        : _avatarImage(user?.avatarUrl);
 
     return Scaffold(
       body: SafeArea(
@@ -138,17 +114,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Row(
                   children: [
                     GestureDetector(
-                      onTap: user == null
-                          ? null
-                          : () => _pickAndUploadAvatar(user),
+                      onTap: user == null ? null : () => _pickAndUploadAvatar(user),
                       child: Stack(
                         alignment: Alignment.bottomRight,
                         children: [
                           CircleAvatar(
                             radius: 32,
-                            backgroundColor: Colors.white.withValues(
-                              alpha: 0.2,
-                            ),
+                            backgroundColor: Colors.white.withValues(alpha: 0.2),
                             backgroundImage: avatarImage,
                             child: avatarImage == null
                                 ? Text(
@@ -232,11 +204,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 ),
                               ),
                               const SizedBox(width: 8),
-                              const Icon(
-                                Icons.star,
-                                color: Colors.amber,
-                                size: 14,
-                              ),
+                              const Icon(Icons.star, color: Colors.amber, size: 14),
                               const SizedBox(width: 2),
                               Text(
                                 rating,
@@ -260,10 +228,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 future: _overviewFuture,
                 builder: (context, snapshot) {
                   final overview = snapshot.data;
-                  final totalTrips =
-                      overview?.totalCompletedTrips.toString() ??
-                      user?.totalTrips.toString() ??
-                      '0';
+                  final totalBookedTrips =
+                      overview?.totalBookedTrips.toString() ?? '0';
                   final amountText = _formatAmount(
                     overview?.totalAmountBooked ?? 0,
                   );
@@ -272,11 +238,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
                     child: Row(
                       children: [
-                        _statCard(context, totalTrips, 'Chuyến đi'),
+                        _statCard(context, totalBookedTrips, 'Chuyến đã đặt'),
                         const SizedBox(width: 8),
                         _statCard(context, rating, 'Đánh giá'),
                         const SizedBox(width: 8),
-                        _statCard(context, amountText, 'Đã đặt'),
+                        _statCard(context, amountText, 'Đã chi'),
                       ],
                     ),
                   );
@@ -323,8 +289,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       scrollDirection: Axis.horizontal,
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                       itemCount: companions.length,
-                      separatorBuilder: (context, index) =>
-                          const SizedBox(width: 12),
+                      separatorBuilder: (_, _) => const SizedBox(width: 12),
                       itemBuilder: (context, index) {
                         final companion = companions[index];
                         return _companionCard(
@@ -469,18 +434,70 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  void _ensureOverviewLoaded(AppUser? user) {
+  Future<void> _pickAndUploadAvatar(AppUser user) async {
+    if (_uploadingAvatar) return;
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+      withData: true,
+    );
+    if (result == null || result.files.isEmpty) return;
+
+    final file = result.files.first;
+    final bytes = file.bytes;
+    if (bytes == null) return;
+
+    setState(() {
+      _localAvatarBytes = bytes;
+      _uploadingAvatar = true;
+    });
+
+    try {
+      final ext = file.extension ?? 'jpg';
+      final url = await AuthService.uploadAvatarBytes(
+        userId: user.id,
+        bytes: bytes,
+        fileName: 'avatar.$ext',
+      );
+      if (!mounted) return;
+
+      final auth = context.read<AuthProvider>();
+      final ok = await auth.updateProfile(user.copyWith(avatarUrl: url));
+      if (!ok) {
+        throw Exception(auth.error ?? 'Không thể cập nhật avatar');
+      }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Đã cập nhật ảnh đại diện')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Không upload được avatar: $e')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _uploadingAvatar = false);
+      }
+    }
+  }
+
+  void _ensureOverviewLoaded(AppUser? user, String overviewDataKey) {
     if (user == null) {
       _overviewFuture = null;
       _overviewUserId = null;
+      _overviewDataKey = null;
       return;
     }
 
-    if (_overviewFuture != null && _overviewUserId == user.id) {
+    if (_overviewFuture != null &&
+        _overviewUserId == user.id &&
+        _overviewDataKey == overviewDataKey) {
       return;
     }
 
     _overviewUserId = user.id;
+    _overviewDataKey = overviewDataKey;
     _overviewFuture = ProfileService.loadOverview(
       userId: user.id,
       currentUserName: user.fullName,

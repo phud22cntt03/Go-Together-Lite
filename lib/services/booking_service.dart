@@ -87,11 +87,11 @@ class BookingService {
     return _db
         .collection(_bookingsCol)
         .where('passengerId', isEqualTo: passengerId)
-        .orderBy('createdAt', descending: true)
         .snapshots()
         .map(
-          (snap) =>
-              snap.docs.map((d) => Booking.fromMap(d.id, d.data())).toList(),
+          (snap) => _sortBookings(
+            snap.docs.map((d) => Booking.fromMap(d.id, d.data())).toList(),
+          ),
         );
   }
 
@@ -99,9 +99,10 @@ class BookingService {
     final snap = await _db
         .collection(_bookingsCol)
         .where('passengerId', isEqualTo: passengerId)
-        .orderBy('createdAt', descending: true)
         .get();
-    return snap.docs.map((d) => Booking.fromMap(d.id, d.data())).toList();
+    return _sortBookings(
+      snap.docs.map((d) => Booking.fromMap(d.id, d.data())).toList(),
+    );
   }
 
   static Future<List<Booking>> getBookingsForTrip(String tripId) async {
@@ -123,5 +124,10 @@ class BookingService {
       'ratedAt': FieldValue.serverTimestamp(),
       'status': 'completed',
     });
+  }
+
+  static List<Booking> _sortBookings(List<Booking> bookings) {
+    bookings.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return bookings;
   }
 }

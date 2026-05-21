@@ -17,12 +17,14 @@ class ProfileCompanion {
 class ProfileOverview {
   final List<Trip> historyTrips;
   final List<ProfileCompanion> companions;
+  final int totalBookedTrips;
   final int totalCompletedTrips;
   final int totalAmountBooked;
 
   const ProfileOverview({
     required this.historyTrips,
     required this.companions,
+    required this.totalBookedTrips,
     required this.totalCompletedTrips,
     required this.totalAmountBooked,
   });
@@ -106,6 +108,7 @@ class ProfileService {
     final totalCompletedTrips = historyEntries
         .where((entry) => entry.trip.status == 'completed')
         .length;
+    final totalBookedTrips = bookings.where((booking) => !booking.isCancelled).length;
     final totalAmountBooked = bookings.fold<int>(
       0,
       (sum, booking) => sum + booking.totalPrice,
@@ -114,6 +117,7 @@ class ProfileService {
     return ProfileOverview(
       historyTrips: historyEntries.map((entry) => entry.trip).toList(),
       companions: topCompanions,
+      totalBookedTrips: totalBookedTrips,
       totalCompletedTrips: totalCompletedTrips,
       totalAmountBooked: totalAmountBooked,
     );

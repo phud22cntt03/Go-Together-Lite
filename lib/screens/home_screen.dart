@@ -7,6 +7,7 @@ import '../providers/auth_provider.dart';
 import '../providers/trip_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/trip_card.dart';
+import 'search_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -15,7 +16,7 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final tripProvider = context.watch<TripProvider>();
     final auth = context.watch<AuthProvider>();
-    final recentTrips = tripProvider.allTrips;
+    final recentTrips = tripProvider.recentTrips;
 
     return Scaffold(
       body: SafeArea(
@@ -23,7 +24,7 @@ class HomeScreen extends StatelessWidget {
           slivers: [
             _buildHeader(context, auth),
             _buildSearchBar(context),
-            _buildChips(context),
+            _buildCategories(context),
             _buildBanner(context, auth),
             _buildSectionTitle(context),
             if (tripProvider.isLoading && recentTrips.isEmpty)
@@ -179,72 +180,109 @@ class HomeScreen extends StatelessWidget {
     return SliverToBoxAdapter(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          decoration: BoxDecoration(
-            color: AppTheme.surfaceContainerLow,
-            borderRadius: AppTheme.radiusLg,
-          ),
-          child: Row(
-            children: [
-              const Icon(Icons.search, color: AppTheme.outline, size: 20),
-              const SizedBox(width: 12),
-              Text(
-                'Bạn muốn đi đâu?',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyMedium?.copyWith(color: AppTheme.outline),
-              ),
-            ],
+        child: GestureDetector(
+          onTap: () => _openSearch(context),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: AppTheme.surfaceContainerLow,
+              borderRadius: AppTheme.radiusLg,
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.search, color: AppTheme.outline, size: 20),
+                const SizedBox(width: 12),
+                Text(
+                  'Bạn muốn đi đâu?',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(color: AppTheme.outline),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildChips(BuildContext context) {
-    final chips = [
-      ('Gần đây', Icons.access_time),
-      ('Yêu thích', Icons.star_outline),
-      ('Đường quen', Icons.route),
-      ('Giá rẻ', Icons.local_offer_outlined),
+  Widget _buildCategories(BuildContext context) {
+    final categories = [
+      _HomeCategory(
+        label: 'Mới đăng',
+        icon: Icons.access_time,
+        quickFilter: 'newest',
+      ),
+      _HomeCategory(
+        label: 'Ô tô',
+        icon: Icons.directions_car_outlined,
+        quickFilter: 'car',
+      ),
+      _HomeCategory(
+        label: 'Xe máy',
+        icon: Icons.two_wheeler_outlined,
+        quickFilter: 'motorbike',
+      ),
+      _HomeCategory(
+        label: 'Giá rẻ',
+        icon: Icons.local_offer_outlined,
+        quickFilter: 'cheap',
+      ),
+      _HomeCategory(
+        label: 'Quanh bạn',
+        icon: Icons.my_location,
+        quickFilter: 'nearby',
+      ),
     ];
+
     return SliverToBoxAdapter(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
-            children: chips
+            children: categories
                 .map(
-                  (chip) => Padding(
+                  (category) => Padding(
                     padding: const EdgeInsets.only(right: 8),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 10,
+                    child: GestureDetector(
+                      onTap: () => _openSearch(
+                        context,
+                        initialQuickFilter: category.quickFilter,
                       ),
-                      decoration: BoxDecoration(
-                        color: AppTheme.surfaceContainerLow,
-                        borderRadius: AppTheme.radiusFull,
-                        border: Border.all(
-                          color: AppTheme.outlineVariant.withValues(alpha: 0.4),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 10,
                         ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(chip.$2, size: 16, color: AppTheme.primary),
-                          const SizedBox(width: 6),
-                          Text(
-                            chip.$1,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                              color: AppTheme.onSurface,
+                        decoration: BoxDecoration(
+                          color: AppTheme.surfaceContainerLow,
+                          borderRadius: AppTheme.radiusFull,
+                          border: Border.all(
+                            color: AppTheme.outlineVariant.withValues(
+                              alpha: 0.4,
                             ),
                           ),
-                        ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              category.icon,
+                              size: 16,
+                              color: AppTheme.primary,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              category.label,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                                color: AppTheme.onSurface,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -294,27 +332,30 @@ class HomeScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Tìm chuyến phù hợp hoặc đăng chuyến mới ngay hôm nay',
+                      'Xem chuyến mới nhất hoặc tìm nhanh theo danh mục phù hợp',
                       style: Theme.of(
                         context,
                       ).textTheme.bodyMedium?.copyWith(color: Colors.white70),
                     ),
                     const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: AppTheme.radiusFull,
-                      ),
-                      child: const Text(
-                        'Bắt đầu ngay',
-                        style: TextStyle(
-                          color: AppTheme.primary,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
+                    GestureDetector(
+                      onTap: () => _openSearch(context),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: AppTheme.radiusFull,
+                        ),
+                        child: const Text(
+                          'Tìm chuyến ngay',
+                          style: TextStyle(
+                            color: AppTheme.primary,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                          ),
                         ),
                       ),
                     ),
@@ -347,7 +388,7 @@ class HomeScreen extends StatelessWidget {
               ).textTheme.labelLarge?.copyWith(fontSize: 16),
             ),
             TextButton(
-              onPressed: () {},
+              onPressed: () => _openSearch(context),
               child: const Text(
                 'Xem tất cả',
                 style: TextStyle(
@@ -364,6 +405,30 @@ class HomeScreen extends StatelessWidget {
   }
 
   Widget _buildSuggestions(BuildContext context) {
+    final suggestions = [
+      _HomeSuggestion(
+        icon: Icons.work_outline,
+        title: 'Đi làm',
+        subtitle: 'Tìm chuyến gần vị trí của bạn',
+        color: AppTheme.secondary,
+        quickFilter: 'nearby',
+      ),
+      _HomeSuggestion(
+        icon: Icons.school_outlined,
+        title: 'Đi học',
+        subtitle: 'Ưu tiên chuyến giá hợp lý',
+        color: AppTheme.tertiary,
+        quickFilter: 'cheap',
+      ),
+      _HomeSuggestion(
+        icon: Icons.flight_takeoff,
+        title: 'Sân bay',
+        subtitle: 'Tìm chuyến có điểm đến sân bay',
+        color: AppTheme.primary,
+        initialTo: 'Sân bay',
+      ),
+    ];
+
     return SliverToBoxAdapter(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
@@ -379,33 +444,27 @@ class HomeScreen extends StatelessWidget {
             const SizedBox(height: 12),
             SizedBox(
               height: 140,
-              child: ListView(
+              child: ListView.separated(
                 scrollDirection: Axis.horizontal,
-                children: [
-                  _suggestionCard(
-                    context,
-                    Icons.work_outline,
-                    'Đi làm',
-                    'Tìm chuyến hằng ngày',
-                    AppTheme.secondary,
-                  ),
-                  const SizedBox(width: 12),
-                  _suggestionCard(
-                    context,
-                    Icons.school_outlined,
-                    'Đi học',
-                    'Kết nối sinh viên',
-                    AppTheme.tertiary,
-                  ),
-                  const SizedBox(width: 12),
-                  _suggestionCard(
-                    context,
-                    Icons.flight_takeoff,
-                    'Sân bay',
-                    'Đón/trả sân bay',
-                    AppTheme.primary,
-                  ),
-                ],
+                itemCount: suggestions.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 12),
+                itemBuilder: (context, index) {
+                  final suggestion = suggestions[index];
+                  return GestureDetector(
+                    onTap: () => _openSearch(
+                      context,
+                      initialQuickFilter: suggestion.quickFilter,
+                      initialTo: suggestion.initialTo,
+                    ),
+                    child: _suggestionCard(
+                      context,
+                      icon: suggestion.icon,
+                      title: suggestion.title,
+                      subtitle: suggestion.subtitle,
+                      color: suggestion.color,
+                    ),
+                  );
+                },
               ),
             ),
           ],
@@ -415,12 +474,12 @@ class HomeScreen extends StatelessWidget {
   }
 
   Widget _suggestionCard(
-    BuildContext context,
-    IconData icon,
-    String title,
-    String subtitle,
-    Color color,
-  ) {
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Color color,
+  }) {
     return Container(
       width: 150,
       padding: const EdgeInsets.all(16),
@@ -464,6 +523,22 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
+  void _openSearch(
+    BuildContext context, {
+    String initialQuickFilter = 'all',
+    String initialTo = '',
+  }) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SearchScreen(
+          initialQuickFilter: initialQuickFilter,
+          initialTo: initialTo,
+        ),
+      ),
+    );
+  }
+
   ImageProvider? _avatarImage(String? avatarUrl) {
     if (avatarUrl == null || avatarUrl.isEmpty) return null;
     if (avatarUrl.startsWith('data:image/')) {
@@ -480,4 +555,34 @@ class HomeScreen extends StatelessWidget {
     if (hour < 18) return 'Chào buổi chiều';
     return 'Chào buổi tối';
   }
+}
+
+class _HomeCategory {
+  const _HomeCategory({
+    required this.label,
+    required this.icon,
+    required this.quickFilter,
+  });
+
+  final String label;
+  final IconData icon;
+  final String quickFilter;
+}
+
+class _HomeSuggestion {
+  const _HomeSuggestion({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.color,
+    this.quickFilter = 'all',
+    this.initialTo = '',
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Color color;
+  final String quickFilter;
+  final String initialTo;
 }
