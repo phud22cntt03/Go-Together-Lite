@@ -9,11 +9,12 @@ class TripService {
     return _db
         .collection(_col)
         .where('status', isEqualTo: 'available')
-        .orderBy('createdAt', descending: true)
         .limit(30)
         .snapshots()
         .map(
-          (snap) => snap.docs.map((d) => Trip.fromMap(d.id, d.data())).toList(),
+          (snap) => _sortTrips(
+            snap.docs.map((d) => Trip.fromMap(d.id, d.data())).toList(),
+          ),
         );
   }
 
