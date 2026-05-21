@@ -162,10 +162,10 @@ class _MyTripsScreenState extends State<MyTripsScreen>
             booking: booking,
             trip: cachedTrip,
             onCancel: () => _confirmCancel(context, booking),
-            onRate: (booking.isCompleted || _canRateTrip(cachedTrip, booking))
+            onRate: booking.isCompleted
                 ? () => _openRating(booking, cachedTrip)
                 : null,
-            canRateNow: _canRateTrip(cachedTrip, booking),
+            canRateNow: booking.isCompleted,
           );
         }
 
@@ -185,10 +185,8 @@ class _MyTripsScreenState extends State<MyTripsScreen>
               booking: booking,
               trip: trip,
               onCancel: () => _confirmCancel(context, booking),
-              onRate: (booking.isCompleted || _canRateTrip(trip, booking))
-                  ? () => _openRating(booking, trip)
-                  : null,
-              canRateNow: _canRateTrip(trip, booking),
+              onRate: booking.isCompleted ? () => _openRating(booking, trip) : null,
+              canRateNow: booking.isCompleted,
             );
           },
         );
@@ -291,6 +289,30 @@ class _MyTripsScreenState extends State<MyTripsScreen>
                   ),
                 ),
               ),
+              if (trip.status != 'completed' && trip.status != 'cancelled') ...[
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  height: 38,
+                  child: ElevatedButton(
+                    onPressed: provider.isLoading
+                        ? null
+                        : () => _confirmCompleteTrip(context, trip),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primary,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: AppTheme.radiusLg,
+                      ),
+                      elevation: 0,
+                    ),
+                    child: const Text(
+                      'Hoàn thành chuyến',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         );
@@ -368,41 +390,42 @@ class _MyTripsScreenState extends State<MyTripsScreen>
     );
   }
 
-  bool _canRateTrip(dynamic trip, Booking booking) {
-    if (booking.isCancelled) return false;
-    if (booking.isCompleted) return true;
-    if (!booking.isConfirmed && !booking.isPending) return false;
+  void _confirmCompleteTrip(BuildContext context, Trip trip) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Hoàn thành chuyến'),
+        content: Text(
+          'Xác nhận chuyến "${trip.pickupLocation} → ${trip.dropoffLocation}" đã đến nơi thành công?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Chưa'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+              final ok = await context.read<TripProvider>().completeTrip(trip.id);
+              if (!context.mounted) return;
 
-    final rawTime =
-        (trip.dropoffTime as String?)?.isNotEmpty == true
-        ? trip.dropoffTime as String
-        : trip.pickupTime as String;
-    final tripEndTime = _parseTripTime(rawTime);
-    if (tripEndTime == null) return false;
-
-    return DateTime.now().isAfter(tripEndTime);
-  }
-
-  DateTime? _parseTripTime(String rawTime) {
-    final match = RegExp(
-      r'(\d{1,2}):(\d{2})\s*-\s*(\d{1,2})/(\d{1,2})',
-    ).firstMatch(rawTime);
-    if (match == null) return null;
-
-    final now = DateTime.now();
-    final hour = int.tryParse(match.group(1) ?? '');
-    final minute = int.tryParse(match.group(2) ?? '');
-    final day = int.tryParse(match.group(3) ?? '');
-    final month = int.tryParse(match.group(4) ?? '');
-    if (hour == null || minute == null || day == null || month == null) {
-      return null;
-    }
-
-    var parsed = DateTime(now.year, month, day, hour, minute);
-    if (parsed.isAfter(now.add(const Duration(days: 180)))) {
-      parsed = DateTime(now.year - 1, month, day, hour, minute);
-    }
-    return parsed;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    ok
+                        ? 'Đã hoàn thành chuyến. Hành khách có thể đánh giá.'
+                        : context.read<TripProvider>().error ??
+                              'Không thể hoàn thành chuyến',
+                  ),
+                  backgroundColor: ok ? AppTheme.primary : AppTheme.error,
+                ),
+              );
+            },
+            child: const Text('Xác nhận'),
+          ),
+        ],
+      ),
+    );
   }
 
   String _formatPrice(int price) => '${(price / 1000).toStringAsFixed(0)}k';

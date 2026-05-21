@@ -117,6 +117,27 @@ class TripService {
     await _db.collection(_col).doc(tripId).update({'status': 'cancelled'});
   }
 
+  static Future<void> completeTrip(String tripId) async {
+    final tripRef = _db.collection(_col).doc(tripId);
+    final bookingsSnap = await _db
+        .collection('bookings')
+        .where('tripId', isEqualTo: tripId)
+        .get();
+
+    final batch = _db.batch();
+    batch.update(tripRef, {'status': 'completed'});
+
+    for (final bookingDoc in bookingsSnap.docs) {
+      final status = bookingDoc.data()['status'] as String? ?? '';
+      if (status == 'cancelled' || status == 'completed') {
+        continue;
+      }
+      batch.update(bookingDoc.reference, {'status': 'completed'});
+    }
+
+    await batch.commit();
+  }
+
   static List<Trip> _sortTrips(List<Trip> trips) {
     trips.sort((a, b) {
       final createdCompare =

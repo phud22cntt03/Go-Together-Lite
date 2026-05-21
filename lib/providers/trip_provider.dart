@@ -98,6 +98,32 @@ class TripProvider extends ChangeNotifier {
     }
   }
 
+  Future<bool> completeTrip(String tripId) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      await TripService.completeTrip(tripId);
+
+      final driverTripIndex = _myCreatedTrips.indexWhere((t) => t.id == tripId);
+      if (driverTripIndex != -1) {
+        _myCreatedTrips[driverTripIndex] = _myCreatedTrips[driverTripIndex]
+            .copyWith(status: 'completed');
+      }
+
+      _allTrips.removeWhere((trip) => trip.id == tripId);
+      _searchResults.removeWhere((trip) => trip.id == tripId);
+      return true;
+    } catch (e) {
+      _error = 'Khong the hoan thanh chuyen: $e';
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   List<Trip> get _filteredResults {
     var results = List<Trip>.from(_searchResults);
 
