@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../data/mock_data.dart';
 import '../models/booking.dart';
+import '../models/trip.dart';
 import '../providers/auth_provider.dart';
 import '../providers/booking_provider.dart';
 import '../providers/trip_provider.dart';
+import '../services/trip_service.dart';
 import '../theme/app_theme.dart';
 import 'driver_bookings_screen.dart';
 import 'rating_screen.dart';
@@ -155,20 +156,41 @@ class _MyTripsScreenState extends State<MyTripsScreen>
       itemCount: bookings.length,
       itemBuilder: (ctx, i) {
         final booking = bookings[i];
-        final trip =
-            tripProvider.getTripById(booking.tripId) ??
-            MockData.tripHistory.firstWhere(
-              (t) => t.id == booking.tripId,
-              orElse: () => MockData.tripHistory.first,
+        final cachedTrip = tripProvider.getTripById(booking.tripId);
+        if (cachedTrip != null) {
+          return _BookingCard(
+            booking: booking,
+            trip: cachedTrip,
+            onCancel: () => _confirmCancel(context, booking),
+            onRate: (booking.isCompleted || _canRateTrip(cachedTrip, booking))
+                ? () => _openRating(booking, cachedTrip)
+                : null,
+            canRateNow: _canRateTrip(cachedTrip, booking),
+          );
+        }
+
+        return FutureBuilder<Trip?>(
+          future: TripService.getTripById(booking.tripId),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return _BookingLoadingCard(booking: booking);
+            }
+
+            final trip = snapshot.data;
+            if (trip == null) {
+              return _BookingMissingTripCard(booking: booking);
+            }
+
+            return _BookingCard(
+              booking: booking,
+              trip: trip,
+              onCancel: () => _confirmCancel(context, booking),
+              onRate: (booking.isCompleted || _canRateTrip(trip, booking))
+                  ? () => _openRating(booking, trip)
+                  : null,
+              canRateNow: _canRateTrip(trip, booking),
             );
-        return _BookingCard(
-          booking: booking,
-          trip: trip,
-          onCancel: () => _confirmCancel(context, booking),
-          onRate: (booking.isCompleted || _canRateTrip(trip, booking))
-              ? () => _openRating(booking, trip)
-              : null,
-          canRateNow: _canRateTrip(trip, booking),
+          },
         );
       },
     );
@@ -585,6 +607,86 @@ class _BookingCard extends StatelessWidget {
     RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
     (m) => '${m[1]}.',
   );
+}
+
+class _BookingLoadingCard extends StatelessWidget {
+  final Booking booking;
+
+  const _BookingLoadingCard({required this.booking});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: AppTheme.radiusXxl,
+        boxShadow: AppTheme.cardShadow,
+      ),
+      child: Row(
+        children: [
+          const SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: AppTheme.primary,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Đang tải thông tin chuyến ${booking.id}...',
+              style: const TextStyle(color: AppTheme.outline),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BookingMissingTripCard extends StatelessWidget {
+  final Booking booking;
+
+  const _BookingMissingTripCard({required this.booking});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: AppTheme.radiusXxl,
+        boxShadow: AppTheme.cardShadow,
+        border: Border.all(color: AppTheme.error.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Không tải được chi tiết chuyến đi',
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              color: AppTheme.error,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Mã chuyến: ${booking.tripId}',
+            style: const TextStyle(color: AppTheme.outline),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Booking: ${booking.id}',
+            style: const TextStyle(color: AppTheme.outline),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _StatusChip extends StatelessWidget {
