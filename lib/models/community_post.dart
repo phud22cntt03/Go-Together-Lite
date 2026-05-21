@@ -68,6 +68,10 @@ class PostComment {
   final String authorId;
   final String authorName;
   final String content;
+  final String? imageUrl;
+  final Map<String, List<String>> reactions; // emoji -> list of userIds
+  final String? replyToId;
+  final String? replyToName;
   final DateTime? createdAt;
 
   PostComment({
@@ -75,6 +79,10 @@ class PostComment {
     required this.authorId,
     required this.authorName,
     required this.content,
+    this.imageUrl,
+    this.reactions = const {},
+    this.replyToId,
+    this.replyToName,
     this.createdAt,
   });
 
@@ -83,6 +91,10 @@ class PostComment {
     'authorId': authorId,
     'authorName': authorName,
     'content': content,
+    'imageUrl': imageUrl,
+    'reactions': reactions,
+    'replyToId': replyToId,
+    'replyToName': replyToName,
     'createdAt': createdAt != null
         ? Timestamp.fromDate(createdAt!)
         : FieldValue.serverTimestamp(),
@@ -93,8 +105,21 @@ class PostComment {
     authorId: d['authorId'] ?? '',
     authorName: d['authorName'] ?? '',
     content: d['content'] ?? '',
+    imageUrl: d['imageUrl'],
+    reactions: _parseReactions(d['reactions']),
+    replyToId: d['replyToId'],
+    replyToName: d['replyToName'],
     createdAt: _readDateTime(d['createdAt']),
   );
+
+  static Map<String, List<String>> _parseReactions(dynamic raw) {
+    if (raw == null || raw is! Map) return {};
+    final result = <String, List<String>>{};
+    for (final entry in raw.entries) {
+      result[entry.key.toString()] = List<String>.from(entry.value ?? []);
+    }
+    return result;
+  }
 
   static DateTime? _readDateTime(dynamic value) {
     if (value is Timestamp) return value.toDate();

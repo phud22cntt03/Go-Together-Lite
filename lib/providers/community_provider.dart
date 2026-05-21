@@ -27,6 +27,7 @@ class CommunityProvider extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
+    _postsSub?.cancel();
     _postsSub = CommunityService.watchPosts(topic: _selectedTopic).listen(
       (postsData) {
         _posts = postsData
@@ -42,6 +43,12 @@ class CommunityProvider extends ChangeNotifier {
         notifyListeners();
       },
     );
+  }
+
+  // Pull-to-refresh
+  Future<void> refreshPosts() async {
+    _postsSub?.cancel();
+    _loadPosts();
   }
 
   // Thay đổi topic filter
@@ -128,12 +135,15 @@ class CommunityProvider extends ChangeNotifier {
     }
   }
 
-  // Thêm comment
+  // Thêm comment (hỗ trợ ảnh + reply)
   Future<void> addComment({
     required String postId,
     required String authorId,
     required String authorName,
     required String content,
+    String? imageUrl,
+    String? replyToId,
+    String? replyToName,
   }) async {
     try {
       await CommunityService.addComment(
@@ -141,10 +151,33 @@ class CommunityProvider extends ChangeNotifier {
         authorId: authorId,
         authorName: authorName,
         content: content,
+        imageUrl: imageUrl,
+        replyToId: replyToId,
+        replyToName: replyToName,
       );
       notifyListeners();
     } catch (e) {
       _error = 'Không thể thêm bình luận: $e';
+      notifyListeners();
+    }
+  }
+
+  // Toggle reaction on comment
+  Future<void> toggleCommentReaction(
+    String postId,
+    String commentId,
+    String emoji,
+    String userId,
+  ) async {
+    try {
+      await CommunityService.toggleCommentReaction(
+        postId,
+        commentId,
+        emoji,
+        userId,
+      );
+    } catch (e) {
+      _error = 'Lỗi reaction: $e';
       notifyListeners();
     }
   }
