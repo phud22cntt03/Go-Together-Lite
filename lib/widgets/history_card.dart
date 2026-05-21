@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../models/trip.dart';
 import '../theme/app_theme.dart';
 
@@ -54,9 +55,8 @@ class HistoryCard extends StatelessWidget {
                         const SizedBox(height: 2),
                         Text(
                           '${trip.vehicleName} • ${trip.licensePlate}',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: AppTheme.outline,
-                              ),
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: AppTheme.outline),
                         ),
                       ],
                     ),
@@ -67,35 +67,38 @@ class HistoryCard extends StatelessWidget {
                       Text(
                         _formatPrice(trip.pricePerSeat),
                         style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                              color: AppTheme.primary,
-                              fontSize: 16,
-                            ),
+                          color: AppTheme.primary,
+                          fontSize: 16,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: isCompleted
                               ? AppTheme.primaryContainer.withValues(alpha: 0.2)
                               : isCancelled
-                                  ? AppTheme.errorContainer.withValues(alpha: 0.3)
-                                  : AppTheme.surfaceContainerHigh,
+                              ? AppTheme.errorContainer.withValues(alpha: 0.3)
+                              : AppTheme.surfaceContainerHigh,
                           borderRadius: AppTheme.radiusFull,
                         ),
                         child: Text(
                           isCompleted
                               ? 'Hoàn thành'
                               : isCancelled
-                                  ? 'Đã hủy'
-                                  : trip.status,
+                              ? 'Đã hủy'
+                              : trip.status,
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
                             color: isCompleted
                                 ? AppTheme.primary
                                 : isCancelled
-                                    ? AppTheme.error
-                                    : AppTheme.onSurfaceVariant,
+                                ? AppTheme.error
+                                : AppTheme.onSurfaceVariant,
                           ),
                         ),
                       ),
@@ -107,8 +110,11 @@ class HistoryCard extends StatelessWidget {
               Row(
                 children: [
                   const SizedBox(width: 56),
-                  Icon(Icons.location_on_outlined,
-                      size: 14, color: AppTheme.outline),
+                  const Icon(
+                    Icons.location_on_outlined,
+                    size: 14,
+                    color: AppTheme.outline,
+                  ),
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(
@@ -124,8 +130,11 @@ class HistoryCard extends StatelessWidget {
               Row(
                 children: [
                   const SizedBox(width: 56),
-                  Icon(Icons.flag_outlined,
-                      size: 14, color: AppTheme.outline),
+                  const Icon(
+                    Icons.flag_outlined,
+                    size: 14,
+                    color: AppTheme.outline,
+                  ),
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(
@@ -147,8 +156,8 @@ class HistoryCard extends StatelessWidget {
   String _formatPrice(int price) {
     if (price >= 1000) {
       final formatted = (price / 1000).toStringAsFixed(0);
-      return '${formatted}.000đ';
+      return '$formatted.000đ';
     }
-    return '${price}đ';
+    return '$priceđ';
   }
 }

@@ -51,9 +51,12 @@ class TripProvider extends ChangeNotifier {
   Future<void> loadDriverTrips(String driverId) async {
     try {
       _myCreatedTrips = await TripService.getDriverTrips(driverId);
+      _error = null;
       notifyListeners();
     } catch (e) {
+      _error = 'Khong the tai chuyen da dang: $e';
       debugPrint('Load driver trips error: $e');
+      notifyListeners();
     }
   }
 

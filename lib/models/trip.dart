@@ -10,6 +10,10 @@ class Trip {
   final String licensePlate;
   final String pickupLocation;
   final String dropoffLocation;
+  final double? pickupLat;
+  final double? pickupLng;
+  final double? dropoffLat;
+  final double? dropoffLng;
   final String pickupTime;
   final String dropoffTime;
   final int pricePerSeat;
@@ -30,6 +34,10 @@ class Trip {
     required this.licensePlate,
     required this.pickupLocation,
     required this.dropoffLocation,
+    this.pickupLat,
+    this.pickupLng,
+    this.dropoffLat,
+    this.dropoffLng,
     required this.pickupTime,
     this.dropoffTime = '',
     required this.pricePerSeat,
@@ -57,6 +65,10 @@ class Trip {
     'vehicleType': vehicleType,
     'pickupLocation': pickupLocation,
     'dropoffLocation': dropoffLocation,
+    'pickupLat': pickupLat,
+    'pickupLng': pickupLng,
+    'dropoffLat': dropoffLat,
+    'dropoffLng': dropoffLng,
     'pickupTime': pickupTime,
     'dropoffTime': dropoffTime,
     'pricePerSeat': pricePerSeat,
@@ -79,6 +91,10 @@ class Trip {
     licensePlate: d['licensePlate'] ?? '',
     pickupLocation: d['pickupLocation'] ?? '',
     dropoffLocation: d['dropoffLocation'] ?? '',
+    pickupLat: _readDouble(d['pickupLat']),
+    pickupLng: _readDouble(d['pickupLng']),
+    dropoffLat: _readDouble(d['dropoffLat']),
+    dropoffLng: _readDouble(d['dropoffLng']),
     pickupTime: d['pickupTime'] ?? '',
     dropoffTime: d['dropoffTime'] ?? '',
     pricePerSeat: (d['pricePerSeat'] as num?)?.toInt() ?? 0,
@@ -100,6 +116,10 @@ class Trip {
     String? licensePlate,
     String? pickupLocation,
     String? dropoffLocation,
+    double? pickupLat,
+    double? pickupLng,
+    double? dropoffLat,
+    double? dropoffLng,
     String? pickupTime,
     String? dropoffTime,
     int? pricePerSeat,
@@ -120,6 +140,10 @@ class Trip {
       licensePlate: licensePlate ?? this.licensePlate,
       pickupLocation: pickupLocation ?? this.pickupLocation,
       dropoffLocation: dropoffLocation ?? this.dropoffLocation,
+      pickupLat: pickupLat ?? this.pickupLat,
+      pickupLng: pickupLng ?? this.pickupLng,
+      dropoffLat: dropoffLat ?? this.dropoffLat,
+      dropoffLng: dropoffLng ?? this.dropoffLng,
       pickupTime: pickupTime ?? this.pickupTime,
       dropoffTime: dropoffTime ?? this.dropoffTime,
       pricePerSeat: pricePerSeat ?? this.pricePerSeat,
@@ -135,6 +159,11 @@ class Trip {
   static DateTime? _readDateTime(dynamic value) {
     if (value is Timestamp) return value.toDate();
     if (value is DateTime) return value;
+    return null;
+  }
+
+  static double? _readDouble(dynamic value) {
+    if (value is num) return value.toDouble();
     return null;
   }
 }

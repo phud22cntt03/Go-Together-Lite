@@ -106,12 +106,28 @@ class TripService {
     final snap = await _db
         .collection(_col)
         .where('driverId', isEqualTo: driverId)
-        .orderBy('createdAt', descending: true)
         .get();
-    return snap.docs.map((d) => Trip.fromMap(d.id, d.data())).toList();
+    return _sortTrips(
+      snap.docs.map((d) => Trip.fromMap(d.id, d.data())).toList(),
+    );
   }
 
   static Future<void> cancelTrip(String tripId) async {
     await _db.collection(_col).doc(tripId).update({'status': 'cancelled'});
+  }
+
+  static List<Trip> _sortTrips(List<Trip> trips) {
+    trips.sort((a, b) {
+      final createdCompare =
+          (b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0)).compareTo(
+            a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0),
+          );
+      if (createdCompare != 0) {
+        return createdCompare;
+      }
+
+      return a.pickupTime.compareTo(b.pickupTime);
+    });
+    return trips;
   }
 }

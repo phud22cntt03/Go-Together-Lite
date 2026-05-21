@@ -95,6 +95,15 @@ class BookingService {
         );
   }
 
+  static Future<List<Booking>> getMyBookings(String passengerId) async {
+    final snap = await _db
+        .collection(_bookingsCol)
+        .where('passengerId', isEqualTo: passengerId)
+        .orderBy('createdAt', descending: true)
+        .get();
+    return snap.docs.map((d) => Booking.fromMap(d.id, d.data())).toList();
+  }
+
   static Future<List<Booking>> getBookingsForTrip(String tripId) async {
     final snap = await _db
         .collection(_bookingsCol)

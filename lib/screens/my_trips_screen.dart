@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../data/mock_data.dart';
 import '../models/booking.dart';
 import '../providers/auth_provider.dart';
@@ -10,7 +11,14 @@ import 'driver_bookings_screen.dart';
 import 'rating_screen.dart';
 
 class MyTripsScreen extends StatefulWidget {
-  const MyTripsScreen({super.key});
+  final int initialTab;
+  final String title;
+
+  const MyTripsScreen({
+    super.key,
+    this.initialTab = 0,
+    this.title = 'Chuyến đi của tôi',
+  });
 
   @override
   State<MyTripsScreen> createState() => _MyTripsScreenState();
@@ -24,7 +32,11 @@ class _MyTripsScreenState extends State<MyTripsScreen>
   @override
   void initState() {
     super.initState();
-    _tabCtrl = TabController(length: 2, vsync: this);
+    _tabCtrl = TabController(
+      length: 2,
+      vsync: this,
+      initialIndex: widget.initialTab.clamp(0, 1),
+    );
   }
 
   @override
@@ -71,10 +83,10 @@ class _MyTripsScreenState extends State<MyTripsScreen>
                   ),
                   const SizedBox(width: 16),
                   Text(
-                    'Chuyến đi của tôi',
+                    widget.title,
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ],
               ),
@@ -193,8 +205,10 @@ class _MyTripsScreenState extends State<MyTripsScreen>
                       color: AppTheme.primaryContainer.withValues(alpha: 0.15),
                       borderRadius: AppTheme.radiusLg,
                     ),
-                    child: const Icon(
-                      Icons.directions_car,
+                    child: Icon(
+                      trip.vehicleType == 'motorbike'
+                          ? Icons.two_wheeler
+                          : Icons.directions_car,
                       color: AppTheme.primary,
                     ),
                   ),
@@ -215,7 +229,7 @@ class _MyTripsScreenState extends State<MyTripsScreen>
                         const SizedBox(height: 4),
                         Text(
                           '${trip.pickupTime} · ${trip.availableSeats} chỗ trống · ${_formatPrice(trip.pricePerSeat)}/ghế',
-                          style: TextStyle(
+                          style: const TextStyle(
                             color: AppTheme.outline,
                             fontSize: 12,
                           ),
@@ -247,7 +261,7 @@ class _MyTripsScreenState extends State<MyTripsScreen>
                     ),
                   ),
                   child: const Text(
-                    'Xem bookings của chuyến',
+                    'Xem booking của chuyến',
                     style: TextStyle(fontWeight: FontWeight.w600),
                   ),
                 ),
@@ -274,7 +288,10 @@ class _MyTripsScreenState extends State<MyTripsScreen>
             child: Icon(icon, size: 36, color: AppTheme.outline),
           ),
           const SizedBox(height: 16),
-          Text(message, style: TextStyle(color: AppTheme.outline, fontSize: 15)),
+          Text(
+            message,
+            style: const TextStyle(color: AppTheme.outline, fontSize: 15),
+          ),
           const SizedBox(height: 8),
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -300,11 +317,11 @@ class _MyTripsScreenState extends State<MyTripsScreen>
       builder: (_) => _CancelBookingSheet(
         onConfirm: (reason) {
           context.read<BookingProvider>().cancelBooking(
-                bookingId: booking.id,
-                tripId: booking.tripId,
-                seatsToRestore: booking.seatsBooked,
-                reason: reason,
-              );
+            bookingId: booking.id,
+            tripId: booking.tripId,
+            seatsToRestore: booking.seatsBooked,
+            reason: reason,
+          );
           Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -368,7 +385,9 @@ class _BookingCard extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 20,
-                backgroundColor: AppTheme.primaryContainer.withValues(alpha: 0.2),
+                backgroundColor: AppTheme.primaryContainer.withValues(
+                  alpha: 0.2,
+                ),
                 child: Text(
                   trip.driverName.substring(0, 1),
                   style: const TextStyle(
@@ -391,7 +410,10 @@ class _BookingCard extends StatelessWidget {
                     ),
                     Text(
                       trip.vehicleName,
-                      style: TextStyle(color: AppTheme.outline, fontSize: 12),
+                      style: const TextStyle(
+                        color: AppTheme.outline,
+                        fontSize: 12,
+                      ),
                     ),
                   ],
                 ),
@@ -500,7 +522,10 @@ class _BookingCard extends StatelessWidget {
           const SizedBox(width: 4),
           Text(
             text,
-            style: const TextStyle(fontSize: 12, color: AppTheme.onSurfaceVariant),
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppTheme.onSurfaceVariant,
+            ),
           ),
         ],
       ),
@@ -508,13 +533,14 @@ class _BookingCard extends StatelessWidget {
   }
 
   String _fmt(int price) => price.toString().replaceAllMapped(
-        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-        (m) => '${m[1]}.',
-      );
+    RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+    (m) => '${m[1]}.',
+  );
 }
 
 class _StatusChip extends StatelessWidget {
   final String status;
+
   const _StatusChip({required this.status});
 
   @override
@@ -547,6 +573,7 @@ class _StatusChip extends StatelessWidget {
 
 class _CancelBookingSheet extends StatefulWidget {
   final Function(String reason) onConfirm;
+
   const _CancelBookingSheet({required this.onConfirm});
 
   @override
@@ -581,7 +608,7 @@ class _CancelBookingSheetState extends State<_CancelBookingSheet> {
             ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 6),
-          Text(
+          const Text(
             'Vui lòng chọn lý do hủy',
             style: TextStyle(color: AppTheme.outline),
           ),

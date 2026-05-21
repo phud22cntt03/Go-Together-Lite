@@ -1,14 +1,17 @@
-import 'dart:typed_data';
 import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../data/mock_data.dart';
+
 import '../models/user.dart';
 import '../providers/auth_provider.dart';
 import '../services/auth_service.dart';
+import '../services/profile_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/history_card.dart';
+import 'my_trips_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -20,6 +23,8 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   bool _uploadingAvatar = false;
   Uint8List? _localAvatarBytes;
+  Future<ProfileOverview>? _overviewFuture;
+  String? _overviewUserId;
 
   Future<void> _pickAndUploadAvatar(AppUser user) async {
     if (_uploadingAvatar) return;
@@ -48,17 +53,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final auth = context.read<AuthProvider>();
       final ok = await auth.updateProfile(user.copyWith(avatarUrl: url));
       if (!ok) {
-        throw Exception(auth.error ?? 'Khong the cap nhat avatar');
+        throw Exception(auth.error ?? 'Không thể cập nhật avatar');
       }
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Da cap nhat anh dai dien')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Đã cập nhật ảnh đại diện')));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Khong upload duoc avatar: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Không upload được avatar: $e')));
     } finally {
       if (mounted) {
         setState(() => _uploadingAvatar = false);
@@ -68,12 +73,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final history = MockData.tripHistory;
     final user = context.watch<AuthProvider>().currentUser;
-    final displayName = user?.fullName ?? 'Nguyen Minh Tuan';
-    final initials = user?.initials ?? 'MT';
-    final rating = user?.rating.toStringAsFixed(1) ?? '4.8';
-    final totalTrips = user?.totalTrips.toString() ?? '152';
+    _ensureOverviewLoaded(user);
+
+    final displayName = user?.fullName ?? 'Người dùng';
+    final initials = user?.initials ?? 'U';
+    final rating = user?.rating.toStringAsFixed(1) ?? '5.0';
     final avatarUrl = user?.avatarUrl;
     final avatarImage = _localAvatarBytes != null
         ? MemoryImage(_localAvatarBytes!)
@@ -89,7 +94,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Row(
                   children: [
                     Text(
-                      'Ca nhan',
+                      'Cá nhân',
                       style: Theme.of(context).textTheme.headlineSmall
                           ?.copyWith(fontWeight: FontWeight.w700),
                     ),
@@ -133,13 +138,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Row(
                   children: [
                     GestureDetector(
-                      onTap: user == null ? null : () => _pickAndUploadAvatar(user),
+                      onTap: user == null
+                          ? null
+                          : () => _pickAndUploadAvatar(user),
                       child: Stack(
                         alignment: Alignment.bottomRight,
                         children: [
                           CircleAvatar(
                             radius: 32,
-                            backgroundColor: Colors.white.withValues(alpha: 0.2),
+                            backgroundColor: Colors.white.withValues(
+                              alpha: 0.2,
+                            ),
                             backgroundImage: avatarImage,
                             child: avatarImage == null
                                 ? Text(
@@ -211,9 +220,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   color: Colors.white.withValues(alpha: 0.2),
                                   borderRadius: AppTheme.radiusFull,
                                 ),
-                                child: const Text(
-                                  'Thanh vien bac',
-                                  style: TextStyle(
+                                child: Text(
+                                  user?.isVerified == true
+                                      ? 'Đã xác minh'
+                                      : 'Thành viên',
+                                  style: const TextStyle(
                                     fontSize: 11,
                                     color: Colors.white,
                                     fontWeight: FontWeight.w500,
@@ -245,46 +256,86 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
             SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                child: Row(
-                  children: [
-                    _statCard(context, totalTrips, 'Chuyen di'),
-                    const SizedBox(width: 8),
-                    _statCard(context, rating, 'Danh gia'),
-                    const SizedBox(width: 8),
-                    _statCard(context, '2.4M', 'Tiet kiem'),
-                  ],
-                ),
+              child: FutureBuilder<ProfileOverview>(
+                future: _overviewFuture,
+                builder: (context, snapshot) {
+                  final overview = snapshot.data;
+                  final totalTrips =
+                      overview?.totalCompletedTrips.toString() ??
+                      user?.totalTrips.toString() ??
+                      '0';
+                  final amountText = _formatAmount(
+                    overview?.totalAmountBooked ?? 0,
+                  );
+
+                  return Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                    child: Row(
+                      children: [
+                        _statCard(context, totalTrips, 'Chuyến đi'),
+                        const SizedBox(width: 8),
+                        _statCard(context, rating, 'Đánh giá'),
+                        const SizedBox(width: 8),
+                        _statCard(context, amountText, 'Đã đặt'),
+                      ],
+                    ),
+                  );
+                },
               ),
             ),
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 24, 20, 8),
                 child: Text(
-                  'Ban dong hanh rut',
-                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        fontSize: 16,
-                      ),
+                  'Bạn đồng hành nổi bật',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelLarge?.copyWith(fontSize: 16),
                 ),
               ),
             ),
             SliverToBoxAdapter(
-              child: SizedBox(
-                height: 100,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  children: [
-                    _companionCard(
-                      context,
-                      'Tran Thi Bich',
-                      'Thuong xuyen di cung',
+              child: FutureBuilder<ProfileOverview>(
+                future: _overviewFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting &&
+                      !snapshot.hasData) {
+                    return const SizedBox(
+                      height: 100,
+                      child: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+
+                  if (snapshot.hasError) {
+                    return _infoMessage('Không tải được dữ liệu bạn đồng hành');
+                  }
+
+                  final companions = snapshot.data?.companions ?? [];
+                  if (companions.isEmpty) {
+                    return _infoMessage(
+                      'Chưa có dữ liệu bạn đồng hành từ các chuyến thực tế.',
+                    );
+                  }
+
+                  return SizedBox(
+                    height: 100,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      itemCount: companions.length,
+                      separatorBuilder: (context, index) =>
+                          const SizedBox(width: 12),
+                      itemBuilder: (context, index) {
+                        final companion = companions[index];
+                        return _companionCard(
+                          context,
+                          companion.name,
+                          companion.subtitle,
+                        );
+                      },
                     ),
-                    const SizedBox(width: 12),
-                    _companionCard(context, 'Le Hoang Nam', 'Da di 5 chuyen'),
-                  ],
-                ),
+                  );
+                },
               ),
             ),
             SliverToBoxAdapter(
@@ -294,15 +345,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Lich su chuyen di',
-                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                            fontSize: 16,
-                          ),
+                      'Lịch sử chuyến đi',
+                      style: Theme.of(
+                        context,
+                      ).textTheme.labelLarge?.copyWith(fontSize: 16),
                     ),
                     TextButton(
-                      onPressed: () => Navigator.pushNamed(context, '/my-trips'),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const MyTripsScreen(
+                              initialTab: 0,
+                              title: 'Lịch sử chuyến đi',
+                            ),
+                          ),
+                        );
+                      },
                       child: const Text(
-                        'Xem tat ca',
+                        'Xem tất cả',
                         style: TextStyle(
                           color: AppTheme.primary,
                           fontWeight: FontWeight.w600,
@@ -314,11 +375,39 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
             ),
-            SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (ctx, i) => HistoryCard(trip: history[i]),
-                childCount: history.length,
-              ),
+            FutureBuilder<ProfileOverview>(
+              future: _overviewFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting &&
+                    !snapshot.hasData) {
+                  return const SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.all(32),
+                      child: Center(child: CircularProgressIndicator()),
+                    ),
+                  );
+                }
+
+                if (snapshot.hasError) {
+                  return SliverToBoxAdapter(
+                    child: _infoMessage('Không tải được lịch sử chuyến đi'),
+                  );
+                }
+
+                final history = snapshot.data?.historyTrips ?? [];
+                if (history.isEmpty) {
+                  return SliverToBoxAdapter(
+                    child: _infoMessage('Chưa có lịch sử chuyến đi thực tế.'),
+                  );
+                }
+
+                return SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (ctx, i) => HistoryCard(trip: history[i]),
+                    childCount: history.length,
+                  ),
+                );
+              },
             ),
             SliverToBoxAdapter(
               child: Padding(
@@ -333,33 +422,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     children: [
                       _menuItem(
                         context,
-                        Icons.confirmation_number_outlined,
-                        'Chuyen di cua toi',
-                        onTap: () => Navigator.pushNamed(context, '/my-trips'),
+                        Icons.directions_car_outlined,
+                        'Phương tiện của tôi',
+                        onTap: () => Navigator.pushNamed(context, '/vehicles'),
                       ),
                       _menuDivider(),
                       _menuItem(
                         context,
-                        Icons.directions_car_outlined,
-                        'Phuong tien cua toi',
-                        onTap: () => Navigator.pushNamed(context, '/vehicles'),
+                        Icons.payment,
+                        'Phương thức thanh toán',
                       ),
-                      _menuDivider(),
-                      _menuItem(context, Icons.payment, 'Phuong thuc thanh toan'),
                       _menuDivider(),
                       _menuItem(
                         context,
                         Icons.notifications_outlined,
-                        'Thong bao',
-                        onTap: () => Navigator.pushNamed(context, '/notifications'),
+                        'Thông báo',
+                        onTap: () =>
+                            Navigator.pushNamed(context, '/notifications'),
                       ),
                       _menuDivider(),
-                      _menuItem(context, Icons.help_outline, 'Trung tam ho tro'),
+                      _menuItem(
+                        context,
+                        Icons.help_outline,
+                        'Trung tâm hỗ trợ',
+                      ),
                       _menuDivider(),
                       _menuItem(
                         context,
                         Icons.logout,
-                        'Dang xuat',
+                        'Đăng xuất',
                         isDestructive: true,
                         onTap: () {
                           context.read<AuthProvider>().logout();
@@ -375,6 +466,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  void _ensureOverviewLoaded(AppUser? user) {
+    if (user == null) {
+      _overviewFuture = null;
+      _overviewUserId = null;
+      return;
+    }
+
+    if (_overviewFuture != null && _overviewUserId == user.id) {
+      return;
+    }
+
+    _overviewUserId = user.id;
+    _overviewFuture = ProfileService.loadOverview(
+      userId: user.id,
+      currentUserName: user.fullName,
     );
   }
 
@@ -408,6 +517,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  Widget _infoMessage(String message) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: AppTheme.radiusXxl,
+          boxShadow: AppTheme.cardShadow,
+        ),
+        child: Text(
+          message,
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: AppTheme.outline),
+        ),
+      ),
+    );
+  }
+
   ImageProvider? _avatarImage(String? avatarUrl) {
     if (avatarUrl == null || avatarUrl.isEmpty) return null;
     if (avatarUrl.startsWith('data:image/')) {
@@ -421,7 +550,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _companionCard(BuildContext context, String name, String subtitle) {
     return Container(
-      width: 160,
+      width: 180,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -460,7 +589,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Text(
                   subtitle,
                   style: const TextStyle(fontSize: 10, color: AppTheme.outline),
-                  maxLines: 1,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
               ],
@@ -509,5 +638,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
       endIndent: 16,
       color: AppTheme.onSurface.withValues(alpha: 0.05),
     );
+  }
+
+  String _formatAmount(int amount) {
+    if (amount >= 1000000) {
+      return '${(amount / 1000000).toStringAsFixed(1)}M';
+    }
+    if (amount >= 1000) {
+      return '${(amount / 1000).toStringAsFixed(0)}k';
+    }
+    return '$amount';
   }
 }
