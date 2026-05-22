@@ -1,16 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../models/app_notification.dart';
+import '../providers/auth_provider.dart';
+import '../providers/notification_provider.dart';
 import '../theme/app_theme.dart';
 
-class NotificationsScreen extends StatelessWidget {
+class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
 
-  static final _mockNotifications = [
-    _Notif(icon: Icons.check_circle, color: Colors.green, title: 'Đặt chỗ thành công', subtitle: 'Chuyến Quận 7 → Quận 1 lúc 08:30', time: '2 phút trước', isRead: false),
-    _Notif(icon: Icons.star, color: Colors.amber, title: 'Đánh giá chuyến đi', subtitle: 'Hãy đánh giá chuyến đi với Minh Tuấn', time: '1 giờ trước', isRead: false),
-    _Notif(icon: Icons.directions_car, color: AppTheme.primary, title: 'Chuyến đi sắp khởi hành', subtitle: 'Tài xế đang trên đường đón bạn', time: '3 giờ trước', isRead: true),
-    _Notif(icon: Icons.cancel, color: Colors.red, title: 'Đặt chỗ bị hủy', subtitle: 'Tài xế đã hủy chuyến Cầu Giấy → Nội Bài', time: '1 ngày trước', isRead: true),
-    _Notif(icon: Icons.local_offer, color: Colors.purple, title: 'Ưu đãi đặc biệt', subtitle: 'Giảm 30% cho chuyến đi thứ 5 của bạn!', time: '2 ngày trước', isRead: true),
-  ];
+  @override
+  State<NotificationsScreen> createState() => _NotificationsScreenState();
+}
+
+class _NotificationsScreenState extends State<NotificationsScreen> {
+  late NotificationProvider _notificationProvider;
+
+  @override
+  void initState() {
+    super.initState();
+    final user = context.read<AuthProvider>().currentUser;
+    if (user != null) {
+      _notificationProvider = context.read<NotificationProvider>();
+      _notificationProvider.watchNotifications(user.id);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -19,60 +32,67 @@ class NotificationsScreen extends StatelessWidget {
       body: SafeArea(
         child: Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-              child: Row(
-                children: [
-                  GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: Container(
-                      width: 42, height: 42,
-                      decoration: BoxDecoration(color: AppTheme.surfaceContainerLow, borderRadius: AppTheme.radiusFull),
-                      child: const Icon(Icons.arrow_back_ios_new, size: 18),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Text('Thông báo', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
-                  const Spacer(),
-                  TextButton(onPressed: () {}, child: const Text('Đọc tất cả', style: TextStyle(color: AppTheme.primary, fontSize: 13))),
-                ],
-              ),
-            ),
-            const SizedBox(height: 8),
+            _buildHeader(context),
             Expanded(
-              child: ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                itemCount: _mockNotifications.length,
-                separatorBuilder: (_, __) => const Divider(height: 1),
-                itemBuilder: (ctx, i) {
-                  final n = _mockNotifications[i];
-                  return Container(
-                    color: n.isRead ? Colors.transparent : AppTheme.primary.withValues(alpha: 0.03),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          width: 44, height: 44,
-                          decoration: BoxDecoration(color: n.color.withValues(alpha: 0.12), shape: BoxShape.circle),
-                          child: Icon(n.icon, color: n.color, size: 22),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                            Row(children: [
-                              Expanded(child: Text(n.title, style: TextStyle(fontWeight: n.isRead ? FontWeight.w500 : FontWeight.w700, fontSize: 14))),
-                              if (!n.isRead)
-                                Container(width: 8, height: 8, decoration: const BoxDecoration(color: AppTheme.primary, shape: BoxShape.circle)),
-                            ]),
-                            const SizedBox(height: 4),
-                            Text(n.subtitle, style: TextStyle(color: AppTheme.onSurfaceVariant, fontSize: 13)),
-                            const SizedBox(height: 4),
-                            Text(n.time, style: TextStyle(color: AppTheme.outline, fontSize: 11)),
-                          ]),
-                        ),
-                      ],
-                    ),
+              child: Consumer<NotificationProvider>(
+                builder: (context, provider, _) {
+                  if (provider.isLoading && provider.notifications.isEmpty) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  if (provider.notifications.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.notifications_off_outlined,
+                            size: 56,
+                            color: AppTheme.outline.withValues(alpha: 0.5),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Không có thông báo',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyLarge
+                                ?.copyWith(color: AppTheme.outline),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  final groupedNotifications = _groupNotificationsByTime(
+                    provider.notifications,
+                  );
+
+                  return ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    itemCount: groupedNotifications.length,
+                    itemBuilder: (ctx, i) {
+                      final group = groupedNotifications[i];
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(8, 16, 8, 8),
+                            child: Text(
+                              group['label'] as String,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: AppTheme.outline,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                          ...((group['notifications'] as List<AppNotification>)
+                              .map((n) => _buildNotificationCard(context, n))
+                              .toList()),
+                        ],
+                      );
+                    },
                   );
                 },
               ),
@@ -82,15 +102,302 @@ class NotificationsScreen extends StatelessWidget {
       ),
     );
   }
-}
 
-class _Notif {
-  final IconData icon;
-  final Color color;
-  final String title;
-  final String subtitle;
-  final String time;
-  final bool isRead;
+  Widget _buildHeader(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+      child: Row(
+        children: [
+          GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: AppTheme.surfaceContainerLow,
+                borderRadius: AppTheme.radiusFull,
+              ),
+              child: const Icon(Icons.arrow_back_ios_new, size: 18),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            'Thông báo',
+            style: Theme.of(context)
+                .textTheme
+                .headlineSmall
+                ?.copyWith(fontWeight: FontWeight.w700),
+          ),
+          const Spacer(),
+          Consumer<NotificationProvider>(
+            builder: (context, provider, _) {
+              if (provider.unreadCount == 0) return const SizedBox.shrink();
+              return TextButton(
+                onPressed: () {
+                  final user = context.read<AuthProvider>().currentUser;
+                  if (user != null) {
+                    provider.markAllAsRead(user.id);
+                  }
+                },
+                child: const Text(
+                  'Đọc tất cả',
+                  style: TextStyle(
+                    color: AppTheme.primary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
 
-  _Notif({required this.icon, required this.color, required this.title, required this.subtitle, required this.time, required this.isRead});
+  Widget _buildNotificationCard(BuildContext context, AppNotification n) {
+    final icon = _getNotificationIcon(n.type);
+    final color = _getNotificationColor(n.type);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: n.isRead ? Colors.white : AppTheme.primary.withValues(alpha: 0.03),
+        border: Border.all(
+          color: n.isRead
+              ? AppTheme.outlineVariant
+              : AppTheme.primary.withValues(alpha: 0.2),
+          width: 1,
+        ),
+        borderRadius: AppTheme.radiusXl,
+        boxShadow: n.isRead
+            ? []
+            : [
+                BoxShadow(
+                  color: AppTheme.primary.withValues(alpha: 0.08),
+                  blurRadius: 12,
+                  offset: const Offset(0, 2),
+                )
+              ],
+      ),
+      child: Dismissible(
+        key: Key(n.id),
+        onDismissed: (direction) {
+          context.read<NotificationProvider>().deleteNotification(n.id);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Thông báo đã xóa')),
+          );
+        },
+        background: Container(
+          decoration: BoxDecoration(
+            color: Colors.red.withValues(alpha: 0.1),
+            borderRadius: AppTheme.radiusXl,
+          ),
+          alignment: Alignment.centerRight,
+          padding: const EdgeInsets.only(right: 20),
+          child: Icon(
+            Icons.delete_outline,
+            color: Colors.red[600],
+            size: 20,
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: color, size: 24),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            n.title,
+                            style: TextStyle(
+                              fontWeight:
+                                  n.isRead ? FontWeight.w500 : FontWeight.w700,
+                              fontSize: 14,
+                              color: AppTheme.onSurface,
+                            ),
+                          ),
+                        ),
+                        if (!n.isRead)
+                          Container(
+                            width: 10,
+                            height: 10,
+                            decoration: const BoxDecoration(
+                              color: AppTheme.primary,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      n.body,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: AppTheme.onSurfaceVariant,
+                        fontSize: 13,
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          _formatTime(n.createdAt),
+                          style: TextStyle(
+                            color: AppTheme.outline,
+                            fontSize: 11,
+                          ),
+                        ),
+                        if (!n.isRead)
+                          GestureDetector(
+                            onTap: () {
+                              context
+                                  .read<NotificationProvider>()
+                                  .markAsRead(n.id);
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppTheme.primary.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: const Text(
+                                'Đánh dấu đã đọc',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppTheme.primary,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  List<Map<String, dynamic>> _groupNotificationsByTime(
+    List<AppNotification> notifications,
+  ) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+    final weekAgo = today.subtract(const Duration(days: 7));
+
+    final groups = <String, List<AppNotification>>{
+      'Hôm nay': [],
+      'Hôm qua': [],
+      'Tuần này': [],
+      'Cũ hơn': [],
+    };
+
+    for (final n in notifications) {
+      if (n.createdAt == null) {
+        groups['Cũ hơn']!.add(n);
+        continue;
+      }
+
+      final nDate = DateTime(
+        n.createdAt!.year,
+        n.createdAt!.month,
+        n.createdAt!.day,
+      );
+
+      if (nDate == today) {
+        groups['Hôm nay']!.add(n);
+      } else if (nDate == yesterday) {
+        groups['Hôm qua']!.add(n);
+      } else if (nDate.isAfter(weekAgo)) {
+        groups['Tuần này']!.add(n);
+      } else {
+        groups['Cũ hơn']!.add(n);
+      }
+    }
+
+    final result = <Map<String, dynamic>>[];
+    for (final entry in groups.entries) {
+      if (entry.value.isNotEmpty) {
+        result.add({
+          'label': entry.key,
+          'notifications': entry.value,
+        });
+      }
+    }
+
+    return result;
+  }
+
+  IconData _getNotificationIcon(String type) {
+    switch (type) {
+      case 'booking_new':
+        return Icons.check_circle;
+      case 'booking_cancel':
+        return Icons.cancel;
+      case 'trip_cancel':
+        return Icons.cancel;
+      case 'rating':
+        return Icons.star;
+      default:
+        return Icons.notifications;
+    }
+  }
+
+  Color _getNotificationColor(String type) {
+    switch (type) {
+      case 'booking_new':
+        return Colors.green;
+      case 'booking_cancel':
+      case 'trip_cancel':
+        return Colors.red;
+      case 'rating':
+        return Colors.amber;
+      default:
+        return AppTheme.primary;
+    }
+  }
+
+  String _formatTime(DateTime? dateTime) {
+    if (dateTime == null) return '';
+
+    final now = DateTime.now();
+    final diff = now.difference(dateTime);
+
+    if (diff.inMinutes < 60) {
+      return '${diff.inMinutes} phút trước';
+    } else if (diff.inHours < 24) {
+      return '${diff.inHours} giờ trước';
+    } else if (diff.inDays < 7) {
+      return '${diff.inDays} ngày trước';
+    } else {
+      return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
+    }
+  }
 }

@@ -9,6 +9,7 @@ import '../models/user.dart';
 import '../providers/auth_provider.dart';
 import '../providers/booking_provider.dart';
 import '../providers/trip_provider.dart';
+import '../providers/notification_provider.dart';
 import '../services/auth_service.dart';
 import '../services/profile_service.dart';
 import '../theme/app_theme.dart';
@@ -665,5 +666,43 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return '${(amount / 1000).toStringAsFixed(0)}k';
     }
     return '$amount';
+  }
+
+  Widget _buildNotificationMenuItem(BuildContext context) {
+    return Consumer<NotificationProvider>(
+      builder: (context, notificationProvider, child) {
+        final unreadCount = notificationProvider.unreadCount;
+        return Stack(
+          children: [
+            _menuItem(
+              context,
+              Icons.notifications_outlined,
+              'Thông báo',
+              onTap: () => Navigator.pushNamed(context, '/notifications'),
+            ),
+            if (unreadCount > 0)
+              Positioned(
+                right: 16,
+                top: 4,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppTheme.error,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    unreadCount > 99 ? '99+' : '$unreadCount',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
   }
 }

@@ -11,6 +11,11 @@ class TripDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final trip = ModalRoute.of(context)!.settings.arguments as Trip;
+    final pickupDate = _extractDate(trip.pickupTime);
+    final pickupTime = _extractTime(trip.pickupTime);
+    final dropoffTime = _extractTime(trip.dropoffTime);
+    final hasPickupDate = pickupDate != null;
+    final hasDropoffTime = trip.dropoffTime.trim().isNotEmpty;
 
     return Scaffold(
       body: SafeArea(
@@ -59,7 +64,9 @@ class TripDetailScreen extends StatelessWidget {
                             backgroundColor: AppTheme.primaryContainer
                                 .withValues(alpha: 0.3),
                             child: Text(
-                              trip.driverName[0],
+                              trip.driverName.isNotEmpty
+                                  ? trip.driverName[0].toUpperCase()
+                                  : '?',
                               style: const TextStyle(
                                 color: AppTheme.primary,
                                 fontWeight: FontWeight.w700,
@@ -135,26 +142,65 @@ class TripDetailScreen extends StatelessWidget {
                     Row(
                       children: [
                         _infoChip(
-                          context,
-                          Icons.event_seat,
-                          '${trip.availableSeats} chỗ',
-                          'Trống',
+                          icon: Icons.event_seat,
+                          value: '${trip.availableSeats} chỗ',
+                          label: 'Còn trống',
                         ),
                         const SizedBox(width: 8),
                         _infoChip(
-                          context,
-                          Icons.access_time,
-                          trip.pickupTime,
-                          'Khởi hành',
+                          icon: Icons.schedule,
+                          value: pickupTime,
+                          label: 'Giờ đi',
                         ),
                         const SizedBox(width: 8),
                         _infoChip(
-                          context,
-                          Icons.attach_money,
-                          _formatPrice(trip.pricePerSeat),
-                          'Giá/Ghế',
+                          icon: Icons.attach_money,
+                          value: _formatPrice(trip.pricePerSeat),
+                          label: 'Giá/ghế',
                         ),
                       ],
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: AppTheme.radiusXxl,
+                        boxShadow: AppTheme.cardShadow,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Lịch trình thời gian',
+                            style: Theme.of(
+                              context,
+                            ).textTheme.labelLarge?.copyWith(fontSize: 15),
+                          ),
+                          const SizedBox(height: 12),
+                          if (hasPickupDate) ...[
+                            _scheduleRow(
+                              icon: Icons.calendar_today,
+                              label: 'Ngày khởi hành',
+                              value: pickupDate,
+                            ),
+                            const SizedBox(height: 10),
+                          ],
+                          _scheduleRow(
+                            icon: Icons.access_time,
+                            label: 'Giờ khởi hành',
+                            value: pickupTime,
+                          ),
+                          if (hasDropoffTime) ...[
+                            const SizedBox(height: 10),
+                            _scheduleRow(
+                              icon: Icons.flag_outlined,
+                              label: 'Dự kiến đến',
+                              value: dropoffTime,
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 24),
                     Text(
@@ -174,12 +220,13 @@ class TripDetailScreen extends StatelessWidget {
                       child: Column(
                         children: [
                           _routePoint(
-                            context,
-                            'Điểm đón',
-                            trip.pickupLocation,
-                            'Đợi tại sảnh chính',
-                            AppTheme.primaryContainer,
-                            true,
+                            label: 'Điểm đón',
+                            location: trip.pickupLocation,
+                            detail: hasPickupDate
+                                ? 'Khởi hành $pickupTime - $pickupDate'
+                                : 'Khởi hành $pickupTime',
+                            dotColor: AppTheme.primaryContainer,
+                            isPickup: true,
                           ),
                           Padding(
                             padding: const EdgeInsets.only(left: 15),
@@ -199,14 +246,13 @@ class TripDetailScreen extends StatelessWidget {
                             ),
                           ),
                           _routePoint(
-                            context,
-                            'Điểm đến',
-                            trip.dropoffLocation,
-                            trip.dropoffTime.isNotEmpty
-                                ? 'Dự kiến ${trip.dropoffTime}'
+                            label: 'Điểm đến',
+                            location: trip.dropoffLocation,
+                            detail: hasDropoffTime
+                                ? 'Dự kiến $dropoffTime'
                                 : '',
-                            AppTheme.secondary,
-                            false,
+                            dotColor: AppTheme.secondary,
+                            isPickup: false,
                           ),
                         ],
                       ),
@@ -283,7 +329,8 @@ class TripDetailScreen extends StatelessWidget {
                               ),
                             ],
                           ),
-                          if (trip.driverNote != null) ...[
+                          if (trip.driverNote != null &&
+                              trip.driverNote!.trim().isNotEmpty) ...[
                             const SizedBox(height: 16),
                             const Divider(height: 1),
                             const SizedBox(height: 16),
@@ -302,7 +349,7 @@ class TripDetailScreen extends StatelessWidget {
                                 borderRadius: AppTheme.radiusLg,
                               ),
                               child: Text(
-                                '"${trip.driverNote}"',
+                                trip.driverNote!,
                                 style: const TextStyle(
                                   fontSize: 13,
                                   fontStyle: FontStyle.italic,
@@ -378,12 +425,11 @@ class TripDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _infoChip(
-    BuildContext context,
-    IconData icon,
-    String value,
-    String label,
-  ) {
+  Widget _infoChip({
+    required IconData icon,
+    required String value,
+    required String label,
+  }) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 14),
@@ -415,14 +461,54 @@ class TripDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _routePoint(
-    BuildContext context,
-    String label,
-    String location,
-    String detail,
-    Color dotColor,
-    bool isPickup,
-  ) {
+  Widget _scheduleRow({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    return Row(
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: AppTheme.surfaceContainerLow,
+            borderRadius: AppTheme.radiusLg,
+          ),
+          child: Icon(icon, size: 18, color: AppTheme.primary),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(fontSize: 12, color: AppTheme.outline),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.onSurface,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _routePoint({
+    required String label,
+    required String location,
+    required String detail,
+    required Color dotColor,
+    required bool isPickup,
+  }) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -471,7 +557,41 @@ class TripDetailScreen extends StatelessWidget {
     );
   }
 
+  String? _extractDate(String raw) {
+    final match = RegExp(r'(\d{1,2})/(\d{1,2})').firstMatch(raw);
+    if (match == null) {
+      return null;
+    }
+
+    final day = match.group(1)!.padLeft(2, '0');
+    final month = match.group(2)!.padLeft(2, '0');
+    return '$day/$month';
+  }
+
+  String _extractTime(String raw) {
+    final match = RegExp(
+      r'(\d{1,2}):(\d{2})(?:\s*(AM|PM))?',
+      caseSensitive: false,
+    ).firstMatch(raw);
+
+    if (match == null) {
+      return raw.isEmpty ? '--:--' : raw;
+    }
+
+    final hour = match.group(1)!.padLeft(2, '0');
+    final minute = match.group(2)!;
+    final period = match.group(3);
+    if (period == null) {
+      return '$hour:$minute';
+    }
+
+    return '$hour:$minute ${period.toUpperCase()}';
+  }
+
   String _formatPrice(int price) {
+    if (price == 0) {
+      return 'Miễn phí';
+    }
     if (price >= 1000) {
       return '${(price / 1000).toStringAsFixed(0)}k';
     }

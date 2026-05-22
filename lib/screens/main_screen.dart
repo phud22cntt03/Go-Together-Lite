@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../theme/app_theme.dart';
+import '../providers/notification_provider.dart';
 import 'home_screen.dart';
 import 'search_screen.dart';
 import 'create_trip_screen.dart';
 import 'community_screen.dart';
 import 'profile_screen.dart';
+import 'notifications_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
