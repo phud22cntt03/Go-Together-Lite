@@ -40,6 +40,22 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _loginWithGoogle() async {
+    final auth = context.read<AuthProvider>();
+    final ok = await auth.loginWithGoogle();
+    if (!mounted) return;
+    if (ok) {
+      Navigator.pushReplacementNamed(context, '/main');
+    } else if (auth.error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(auth.error!),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
@@ -205,7 +221,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     _buildSocialButton(
                       icon: '🌐',
                       label: 'Tiếp tục với Google',
-                      onTap: () {},
+                      onTap: auth.isLoading ? () {} : _loginWithGoogle,
                     ),
                     const SizedBox(height: 12),
                     _buildSocialButton(

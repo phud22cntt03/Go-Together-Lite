@@ -1,14 +1,18 @@
 import 'dart:convert';
 import 'dart:typed_data';
+
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+
 import '../models/user.dart';
 
 class AuthService {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
   static final FirebaseFirestore _db = FirebaseFirestore.instance;
+  static final GoogleSignIn _googleSignIn = GoogleSignIn();
 
   static Stream<User?> get authStateChanges => _auth.authStateChanges();
 
@@ -52,7 +56,67 @@ class AuthService {
     return _fetchUser(cred.user!.uid);
   }
 
-  static Future<void> logout() => _auth.signOut();
+  static Future<AppUser?> loginWithGoogle() async {
+    UserCredential credential;
+
+    if (kIsWeb) {
+      final provider = GoogleAuthProvider();
+      provider.addScope('email');
+      provider.addScope('profile');
+      credential = await _auth.signInWithPopup(provider);
+    } else {
+      final googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) {
+        throw FirebaseAuthException(
+          code: 'aborted-by-user',
+          message: 'Google sign-in was cancelled by the user.',
+        );
+      }
+
+      final googleAuth = await googleUser.authentication;
+      final authCredential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+      credential = await _auth.signInWithCredential(authCredential);
+    }
+
+    final firebaseUser = credential.user;
+    if (firebaseUser == null) {
+      throw FirebaseAuthException(
+        code: 'user-not-found',
+        message: 'Google sign-in completed without a Firebase user.',
+      );
+    }
+
+    final existingUser = await _fetchUser(firebaseUser.uid);
+    if (existingUser != null) {
+      return existingUser;
+    }
+
+    final newUser = AppUser(
+      id: firebaseUser.uid,
+      fullName: firebaseUser.displayName ?? 'Người dùng Google',
+      email: firebaseUser.email ?? '',
+      phone: firebaseUser.phoneNumber ?? '',
+      avatarUrl: firebaseUser.photoURL,
+      rating: 5.0,
+      totalTrips: 0,
+      totalKm: 0,
+      role: 'both',
+      isVerified: firebaseUser.emailVerified,
+    );
+
+    await _db.collection('users').doc(newUser.id).set(newUser.toMap());
+    return newUser;
+  }
+
+  static Future<void> logout() async {
+    try {
+      await _googleSignIn.signOut();
+    } catch (_) {}
+    await _auth.signOut();
+  }
 
   static Future<void> sendPasswordReset(String email) =>
       _auth.sendPasswordResetEmail(email: email);

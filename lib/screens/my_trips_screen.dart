@@ -531,6 +531,13 @@ class _BookingCard extends StatelessWidget {
               ),
             ],
           ),
+          const SizedBox(height: 8),
+          Text(
+            booking.totalPrice == 0
+                ? 'Chuyen nay duoc dat mien phi. Ung dung chua co tru tien tu dong.'
+                : 'So tien tren hien chi de ghi nhan chi phi chuyen di, chua bi tru tu dong trong ung dung.',
+            style: const TextStyle(fontSize: 12, color: AppTheme.outline),
+          ),
           if ((booking.isPending || booking.isConfirmed) && !canRateNow) ...[
             const SizedBox(height: 12),
             SizedBox(

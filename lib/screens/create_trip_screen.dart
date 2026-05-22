@@ -18,7 +18,7 @@ class CreateTripScreen extends StatefulWidget {
 }
 
 class _CreateTripScreenState extends State<CreateTripScreen> {
-  final _priceCtrl = TextEditingController(text: '50000');
+  final _priceCtrl = TextEditingController(text: '0');
   final _noteCtrl = TextEditingController();
 
   List<Vehicle> _vehicles = [];
@@ -462,11 +462,23 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
               color: AppTheme.primary,
             ),
             decoration: const InputDecoration(
-              hintText: '50000',
+              hintText: '0',
               border: InputBorder.none,
               isDense: true,
               contentPadding: EdgeInsets.zero,
             ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Nhap 0 neu ban cho di mien phi.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 11, color: AppTheme.outline),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Gia tien hien chi de hien thi/thong ke, chua co tru tien tu dong.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 11, color: AppTheme.outline),
           ),
         ],
       ),
@@ -621,7 +633,7 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
     }
 
     final price = int.tryParse(_priceCtrl.text.replaceAll('.', '').trim());
-    if (price == null || price <= 0) {
+    if (price == null || price < 0) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Giá tiền không hợp lệ')));

@@ -56,6 +56,28 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  Future<bool> loginWithGoogle() async {
+    _setLoading(true);
+    _error = null;
+    try {
+      _currentUser = await AuthService.loginWithGoogle();
+      _setLoading(false);
+      return true;
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'aborted-by-user' || e.code == 'popup-closed-by-user') {
+        _error = 'Dang nhap Google da bi huy';
+      } else {
+        _error = _mapFirebaseError(e.code);
+      }
+      _setLoading(false);
+      return false;
+    } catch (e) {
+      _error = 'Da xay ra loi: $e';
+      _setLoading(false);
+      return false;
+    }
+  }
+
   Future<bool> register({
     required String fullName,
     required String email,
