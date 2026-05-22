@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/auth_provider.dart';
+import '../providers/notification_provider.dart';
 import '../providers/trip_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/trip_card.dart';
@@ -141,18 +142,50 @@ class HomeScreen extends StatelessWidget {
             ),
             GestureDetector(
               onTap: () => Navigator.pushNamed(context, '/notifications'),
-              child: Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: AppTheme.surfaceContainerLow,
-                  borderRadius: AppTheme.radiusFull,
-                ),
-                child: const Icon(
-                  Icons.notifications_outlined,
-                  color: AppTheme.onSurface,
-                  size: 22,
-                ),
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: AppTheme.surfaceContainerLow,
+                      borderRadius: AppTheme.radiusFull,
+                    ),
+                    child: const Icon(
+                      Icons.notifications_outlined,
+                      color: AppTheme.onSurface,
+                      size: 22,
+                    ),
+                  ),
+                  Builder(
+                    builder: (ctx) {
+                      final unread = ctx.watch<NotificationProvider>().unreadCount;
+                      if (unread == 0) return const SizedBox.shrink();
+                      return Positioned(
+                        right: -2,
+                        top: -2,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                            color: Colors.red,
+                            shape: BoxShape.circle,
+                          ),
+                          constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                          child: Text(
+                            unread > 9 ? '9+' : '$unread',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ],
               ),
             ),
             const SizedBox(width: 8),

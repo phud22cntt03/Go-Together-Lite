@@ -19,6 +19,7 @@ import 'providers/booking_provider.dart';
 import 'providers/trip_provider.dart';
 import 'providers/community_provider.dart';
 import 'providers/wallet_provider.dart';
+import 'providers/notification_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -50,6 +51,7 @@ class SmartCarpoolApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => TripProvider()),
         ChangeNotifierProvider(create: (_) => CommunityProvider()),
         ChangeNotifierProvider(create: (_) => WalletProvider()),
+        ChangeNotifierProvider(create: (_) => NotificationProvider()),
       ],
       child: MaterialApp(
         title: 'Smart Carpool Connect',
@@ -90,6 +92,7 @@ class AuthGate extends StatelessWidget {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!context.mounted) return;
           context.read<WalletProvider>().watchUser(userId);
+          context.read<NotificationProvider>().watchNotifications(userId);
         });
       }
       return const MainScreen();

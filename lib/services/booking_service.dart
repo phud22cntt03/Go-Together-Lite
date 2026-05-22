@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/booking.dart';
+import 'notification_service.dart';
 
 class BookingService {
   static final _db = FirebaseFirestore.instance;
@@ -122,6 +123,27 @@ class BookingService {
     });
 
     await batch.commit();
+
+    // Tạo thông báo cho hành khách
+    NotificationService.createNotification(
+      userId: passengerId,
+      type: 'booking_new',
+      title: 'Đặt chỗ thành công',
+      body: 'Bạn đã đặt $seatsBooked ghế cho chuyến ${tripData['pickupLocation'] ?? ''} → ${tripData['dropoffLocation'] ?? ''}.',
+      relatedId: bookingRef.id,
+    );
+
+    // Thông báo cho tài xế (nếu có)
+    if (driverId.isNotEmpty) {
+      NotificationService.createNotification(
+        userId: driverId,
+        type: 'booking_new',
+        title: 'Có khách đặt chỗ mới',
+        body: '$passengerName đã đặt $seatsBooked ghế trên chuyến của bạn.',
+        relatedId: bookingRef.id,
+      );
+    }
+
     return booking;
   }
 
@@ -199,6 +221,28 @@ class BookingService {
 
     batch.update(bookingRef, updates);
     await batch.commit();
+
+    // Tạo thông báo hủy cho hành khách
+    if (passengerId.isNotEmpty) {
+      NotificationService.createNotification(
+        userId: passengerId,
+        type: 'booking_cancel',
+        title: 'Đặt chỗ đã bị hủy',
+        body: 'Đặt chỗ của bạn đã bị hủy. Lý do: $reason',
+        relatedId: bookingId,
+      );
+    }
+
+    // Thông báo cho tài xế
+    if (driverId.isNotEmpty) {
+      NotificationService.createNotification(
+        userId: driverId,
+        type: 'booking_cancel',
+        title: 'Khách hủy đặt chỗ',
+        body: 'Một hành khách đã hủy đặt chỗ trên chuyến của bạn.',
+        relatedId: bookingId,
+      );
+    }
   }
 
   static Stream<List<Booking>> watchMyBookings(String passengerId) {

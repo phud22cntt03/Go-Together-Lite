@@ -2,11 +2,18 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Flutter (Firebase secrets)",
+      "name": "Flutter Web (Chrome)",
       "request": "launch",
       "type": "dart",
       "program": "lib/main.dart",
       "deviceId": "chrome",
+      "toolArgs": ["--dart-define-from-file=.firebase.secrets.json"]
+    },
+    {
+      "name": "Flutter Mobile (Android)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
       "toolArgs": ["--dart-define-from-file=.firebase.secrets.json"]
     }
   ]
