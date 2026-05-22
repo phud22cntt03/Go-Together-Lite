@@ -13,10 +13,12 @@ import 'screens/auth/register_screen.dart';
 import 'screens/my_trips_screen.dart';
 import 'screens/notifications_screen.dart';
 import 'screens/vehicle_screen.dart';
+import 'screens/wallet_screen.dart';
 import 'providers/auth_provider.dart';
 import 'providers/booking_provider.dart';
 import 'providers/trip_provider.dart';
 import 'providers/community_provider.dart';
+import 'providers/wallet_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -47,6 +49,7 @@ class SmartCarpoolApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => BookingProvider()),
         ChangeNotifierProvider(create: (_) => TripProvider()),
         ChangeNotifierProvider(create: (_) => CommunityProvider()),
+        ChangeNotifierProvider(create: (_) => WalletProvider()),
       ],
       child: MaterialApp(
         title: 'Smart Carpool Connect',
@@ -63,6 +66,7 @@ class SmartCarpoolApp extends StatelessWidget {
           '/my-trips': (context) => const MyTripsScreen(),
           '/notifications': (context) => const NotificationsScreen(),
           '/vehicles': (context) => const VehicleScreen(),
+          '/wallet': (context) => const WalletScreen(),
         },
       ),
     );
@@ -81,6 +85,13 @@ class AuthGate extends StatelessWidget {
     }
 
     if (auth.isLoggedIn) {
+      final userId = auth.currentUser?.id;
+      if (userId != null && userId.isNotEmpty) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!context.mounted) return;
+          context.read<WalletProvider>().watchUser(userId);
+        });
+      }
       return const MainScreen();
     }
 

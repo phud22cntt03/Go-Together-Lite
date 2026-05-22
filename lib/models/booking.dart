@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+
 import 'trip.dart';
 
 class Booking {
@@ -17,6 +18,8 @@ class Booking {
   final double? driverRating;
   final String? ratingComment;
   final DateTime? ratedAt;
+  final String paymentMethod; // free, cash, wallet
+  final String paymentStatus; // not_required, pending_cash, paid, refunded
 
   Booking({
     required this.id,
@@ -34,12 +37,24 @@ class Booking {
     this.driverRating,
     this.ratingComment,
     this.ratedAt,
+    this.paymentMethod = 'cash',
+    this.paymentStatus = 'pending_cash',
   });
 
   bool get isPending => status == 'pending';
   bool get isConfirmed => status == 'confirmed';
   bool get isCancelled => status == 'cancelled';
   bool get isCompleted => status == 'completed';
+  bool get isPaid => paymentStatus == 'paid';
+  bool get isRefunded => paymentStatus == 'refunded';
+
+  String get paymentLabel {
+    if (paymentMethod == 'free') return 'Miễn phí';
+    if (paymentMethod == 'wallet') {
+      return isRefunded ? 'Đã hoàn ví' : 'Đã trừ ví';
+    }
+    return 'Tiền mặt';
+  }
 
   String get statusLabel {
     switch (status) {
@@ -74,6 +89,8 @@ class Booking {
     'driverRating': driverRating,
     'ratingComment': ratingComment,
     'ratedAt': ratedAt != null ? Timestamp.fromDate(ratedAt!) : null,
+    'paymentMethod': paymentMethod,
+    'paymentStatus': paymentStatus,
   };
 
   factory Booking.fromMap(String id, Map<String, dynamic> d) => Booking(
@@ -92,6 +109,8 @@ class Booking {
     driverRating: (d['driverRating'] as num?)?.toDouble(),
     ratingComment: d['ratingComment'],
     ratedAt: _readDateTime(d['ratedAt']),
+    paymentMethod: d['paymentMethod'] ?? 'cash',
+    paymentStatus: d['paymentStatus'] ?? 'pending_cash',
   );
 
   Booking copyWith({
@@ -102,6 +121,8 @@ class Booking {
     double? driverRating,
     String? ratingComment,
     DateTime? ratedAt,
+    String? paymentMethod,
+    String? paymentStatus,
   }) {
     return Booking(
       id: id,
@@ -119,6 +140,8 @@ class Booking {
       driverRating: driverRating ?? this.driverRating,
       ratingComment: ratingComment ?? this.ratingComment,
       ratedAt: ratedAt ?? this.ratedAt,
+      paymentMethod: paymentMethod ?? this.paymentMethod,
+      paymentStatus: paymentStatus ?? this.paymentStatus,
     );
   }
 

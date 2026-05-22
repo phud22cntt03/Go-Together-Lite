@@ -312,6 +312,19 @@ class _SearchScreenState extends State<SearchScreen> {
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
               child: Row(
                 children: [
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: AppTheme.surfaceContainerLow,
+                        borderRadius: AppTheme.radiusFull,
+                      ),
+                      child: const Icon(Icons.arrow_back_ios_new, size: 18),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
                   Text(
                     'Tìm kiếm',
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
@@ -437,7 +450,9 @@ class _SearchScreenState extends State<SearchScreen> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: OutlinedButton.icon(
-                            onPressed: _isLocating ? null : _toggleCurrentLocation,
+                            onPressed: _isLocating
+                                ? null
+                                : _toggleCurrentLocation,
                             icon: Icon(
                               _usesCurrentLocation
                                   ? Icons.my_location
@@ -635,7 +650,9 @@ class _SearchScreenState extends State<SearchScreen> {
                       itemCount: trips.length,
                       itemBuilder: (ctx, i) {
                         final trip = trips[i];
-                        final distanceKm = tripProvider.distanceForTrip(trip.id);
+                        final distanceKm = tripProvider.distanceForTrip(
+                          trip.id,
+                        );
 
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,

@@ -7,6 +7,7 @@ import '../providers/auth_provider.dart';
 import '../providers/trip_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/trip_card.dart';
+import 'create_trip_screen.dart';
 import 'search_screen.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -47,7 +48,7 @@ class HomeScreen extends StatelessWidget {
                         Icon(
                           Icons.error_outline,
                           size: 48,
-                          color: AppTheme.error.withValues(alpha: 0.75),
+                          color: AppTheme.error,
                         ),
                         const SizedBox(height: 12),
                         Text(
@@ -138,15 +139,15 @@ class HomeScreen extends StatelessWidget {
                 ],
               ),
             ),
-            Container(
-              width: 42,
-              height: 42,
-              decoration: BoxDecoration(
-                color: AppTheme.surfaceContainerLow,
-                borderRadius: AppTheme.radiusFull,
-              ),
-              child: GestureDetector(
-                onTap: () => Navigator.pushNamed(context, '/notifications'),
+            GestureDetector(
+              onTap: () => Navigator.pushNamed(context, '/notifications'),
+              child: Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: AppTheme.surfaceContainerLow,
+                  borderRadius: AppTheme.radiusFull,
+                ),
                 child: const Icon(
                   Icons.notifications_outlined,
                   color: AppTheme.onSurface,
@@ -332,7 +333,7 @@ class HomeScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Xem chuyến mới nhất hoặc tìm nhanh theo danh mục phù hợp',
+                      'Tìm chuyến phù hợp, đặt chỗ và thanh toán nhanh bằng ví SmartCarpool.',
                       style: Theme.of(
                         context,
                       ).textTheme.bodyMedium?.copyWith(color: Colors.white70),
@@ -407,25 +408,32 @@ class HomeScreen extends StatelessWidget {
   Widget _buildSuggestions(BuildContext context) {
     final suggestions = [
       _HomeSuggestion(
-        icon: Icons.work_outline,
-        title: 'Đi làm',
-        subtitle: 'Tìm chuyến gần vị trí của bạn',
-        color: AppTheme.secondary,
-        quickFilter: 'nearby',
+        icon: Icons.account_balance_wallet_outlined,
+        title: 'Nạp ví',
+        subtitle: 'Thêm số dư để đặt chỗ nhanh',
+        color: const Color(0xFFA50064),
+        routeName: '/wallet',
       ),
       _HomeSuggestion(
-        icon: Icons.school_outlined,
-        title: 'Đi học',
-        subtitle: 'Ưu tiên chuyến giá hợp lý',
-        color: AppTheme.tertiary,
+        icon: Icons.confirmation_number_outlined,
+        title: 'Chuyến đã đặt',
+        subtitle: 'Theo dõi, hủy hoặc đánh giá',
+        color: AppTheme.secondary,
+        routeName: '/my-trips',
+      ),
+      _HomeSuggestion(
+        icon: Icons.local_offer_outlined,
+        title: 'Giá tốt',
+        subtitle: 'Ưu tiên chuyến tiết kiệm',
+        color: AppTheme.primary,
         quickFilter: 'cheap',
       ),
       _HomeSuggestion(
-        icon: Icons.flight_takeoff,
-        title: 'Sân bay',
-        subtitle: 'Tìm chuyến có điểm đến sân bay',
-        color: AppTheme.primary,
-        initialTo: 'Sân bay',
+        icon: Icons.add_road_outlined,
+        title: 'Đăng chuyến',
+        subtitle: 'Chia sẻ ghế trống của bạn',
+        color: AppTheme.tertiary,
+        opensCreateTrip: true,
       ),
     ];
 
@@ -436,7 +444,7 @@ class HomeScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Gợi ý cho bạn',
+              'Tiện ích nhanh',
               style: Theme.of(
                 context,
               ).textTheme.labelLarge?.copyWith(fontSize: 16),
@@ -451,11 +459,7 @@ class HomeScreen extends StatelessWidget {
                 itemBuilder: (context, index) {
                   final suggestion = suggestions[index];
                   return GestureDetector(
-                    onTap: () => _openSearch(
-                      context,
-                      initialQuickFilter: suggestion.quickFilter,
-                      initialTo: suggestion.initialTo,
-                    ),
+                    onTap: () => _openSuggestion(context, suggestion),
                     child: _suggestionCard(
                       context,
                       icon: suggestion.icon,
@@ -504,6 +508,8 @@ class HomeScreen extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
@@ -513,6 +519,8 @@ class HomeScreen extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             subtitle,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: AppTheme.outline,
               fontSize: 11,
@@ -537,6 +545,24 @@ class HomeScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  void _openSuggestion(BuildContext context, _HomeSuggestion suggestion) {
+    if (suggestion.opensCreateTrip) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const CreateTripScreen()),
+      );
+      return;
+    }
+
+    final routeName = suggestion.routeName;
+    if (routeName != null) {
+      Navigator.pushNamed(context, routeName);
+      return;
+    }
+
+    _openSearch(context, initialQuickFilter: suggestion.quickFilter);
   }
 
   ImageProvider? _avatarImage(String? avatarUrl) {
@@ -576,7 +602,8 @@ class _HomeSuggestion {
     required this.subtitle,
     required this.color,
     this.quickFilter = 'all',
-    this.initialTo = '',
+    this.routeName,
+    this.opensCreateTrip = false,
   });
 
   final IconData icon;
@@ -584,5 +611,6 @@ class _HomeSuggestion {
   final String subtitle;
   final Color color;
   final String quickFilter;
-  final String initialTo;
+  final String? routeName;
+  final bool opensCreateTrip;
 }

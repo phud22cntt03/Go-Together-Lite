@@ -1,5 +1,8 @@
 import 'dart:async';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+
 import '../models/booking.dart';
 import '../services/booking_service.dart';
 
@@ -21,7 +24,7 @@ class BookingProvider extends ChangeNotifier {
         notifyListeners();
       },
       onError: (e) {
-        _error = 'Khong the tai booking: $e';
+        _error = 'Không thể tải booking: $e';
         notifyListeners();
       },
     );
@@ -34,6 +37,7 @@ class BookingProvider extends ChangeNotifier {
     required String passengerAvatar,
     required int seatsBooked,
     required int pricePerSeat,
+    String paymentMethod = 'cash',
   }) async {
     _isLoading = true;
     _error = null;
@@ -47,11 +51,15 @@ class BookingProvider extends ChangeNotifier {
         passengerAvatar: passengerAvatar,
         seatsBooked: seatsBooked,
         pricePerSeat: pricePerSeat,
+        paymentMethod: paymentMethod,
       );
       _myBookings.insert(0, booking);
       return booking;
+    } on FirebaseException catch (e) {
+      _error = _mapFirebaseError(e);
+      return null;
     } catch (e) {
-      _error = e.toString();
+      _error = _cleanError(e);
       return null;
     } finally {
       _isLoading = false;
@@ -81,10 +89,15 @@ class BookingProvider extends ChangeNotifier {
         _myBookings[idx] = _myBookings[idx].copyWith(
           status: 'cancelled',
           cancelReason: reason,
+          paymentStatus: _myBookings[idx].paymentMethod == 'wallet'
+              ? 'refunded'
+              : _myBookings[idx].paymentStatus,
         );
       }
+    } on FirebaseException catch (e) {
+      _error = _mapFirebaseError(e);
     } catch (e) {
-      _error = 'Khong the huy booking: $e';
+      _error = 'Không thể hủy booking: ${_cleanError(e)}';
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -114,8 +127,10 @@ class BookingProvider extends ChangeNotifier {
           status: 'completed',
         );
       }
+    } on FirebaseException catch (e) {
+      _error = _mapFirebaseError(e);
     } catch (e) {
-      _error = 'Khong the danh gia: $e';
+      _error = 'Không thể đánh giá: ${_cleanError(e)}';
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -130,5 +145,23 @@ class BookingProvider extends ChangeNotifier {
   void dispose() {
     _bookingsSub?.cancel();
     super.dispose();
+  }
+
+  String _mapFirebaseError(FirebaseException e) {
+    if (e.code == 'permission-denied') {
+      return 'Firebase chưa cho phép ghi booking/ví. Hãy deploy firestore.rules rồi thử lại.';
+    }
+    if (e.code == 'not-found') {
+      return 'Không tìm thấy dữ liệu cần cập nhật. Hãy nạp ví hoặc chọn chuyến khác rồi thử lại.';
+    }
+    return e.message ?? 'Lỗi Firebase (${e.code})';
+  }
+
+  String _cleanError(Object e) {
+    final message = e.toString().replaceAll('Exception: ', '');
+    if (message.contains('converted Future')) {
+      return 'Không thể đặt chỗ. Kiểm tra số dư ví, Firestore rules hoặc dữ liệu chuyến đi.';
+    }
+    return message;
   }
 }

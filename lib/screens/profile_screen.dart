@@ -394,8 +394,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       _menuDivider(),
                       _menuItem(
                         context,
-                        Icons.payment,
-                        'Phương thức thanh toán',
+                        Icons.account_balance_wallet_outlined,
+                        'Vi SmartCarpool',
+                        onTap: () => Navigator.pushNamed(context, '/wallet'),
                       ),
                       _menuDivider(),
                       _menuItem(

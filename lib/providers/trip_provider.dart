@@ -128,6 +128,42 @@ class TripProvider extends ChangeNotifier {
     }
   }
 
+  void applyBookedSeats(String tripId, int seatsBooked) {
+    Trip updateTrip(Trip trip) {
+      final availableSeats = (trip.availableSeats - seatsBooked).clamp(0, 999);
+      return trip.copyWith(
+        availableSeats: availableSeats,
+        status: availableSeats == 0 ? 'full' : 'available',
+      );
+    }
+
+    var changed = false;
+
+    final allIndex = _allTrips.indexWhere((trip) => trip.id == tripId);
+    if (allIndex != -1) {
+      _allTrips[allIndex] = updateTrip(_allTrips[allIndex]);
+      changed = true;
+    }
+
+    final searchIndex = _searchResults.indexWhere((trip) => trip.id == tripId);
+    if (searchIndex != -1) {
+      _searchResults[searchIndex] = updateTrip(_searchResults[searchIndex]);
+      changed = true;
+    }
+
+    final createdIndex = _myCreatedTrips.indexWhere(
+      (trip) => trip.id == tripId,
+    );
+    if (createdIndex != -1) {
+      _myCreatedTrips[createdIndex] = updateTrip(_myCreatedTrips[createdIndex]);
+      changed = true;
+    }
+
+    if (changed) {
+      notifyListeners();
+    }
+  }
+
   List<Trip> get _filteredResults {
     var results = List<Trip>.from(_searchResults);
 

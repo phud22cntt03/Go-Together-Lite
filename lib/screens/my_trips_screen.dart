@@ -185,7 +185,9 @@ class _MyTripsScreenState extends State<MyTripsScreen>
               booking: booking,
               trip: trip,
               onCancel: () => _confirmCancel(context, booking),
-              onRate: booking.isCompleted ? () => _openRating(booking, trip) : null,
+              onRate: booking.isCompleted
+                  ? () => _openRating(booking, trip)
+                  : null,
               canRateNow: booking.isCompleted,
             );
           },
@@ -406,7 +408,9 @@ class _MyTripsScreenState extends State<MyTripsScreen>
           FilledButton(
             onPressed: () async {
               Navigator.pop(dialogContext);
-              final ok = await context.read<TripProvider>().completeTrip(trip.id);
+              final ok = await context.read<TripProvider>().completeTrip(
+                trip.id,
+              );
               if (!context.mounted) return;
 
               ScaffoldMessenger.of(context).showSnackBar(
@@ -532,11 +536,21 @@ class _BookingCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-          Text(
-            booking.totalPrice == 0
-                ? 'Chuyen nay duoc dat mien phi. Ung dung chua co tru tien tu dong.'
-                : 'So tien tren hien chi de ghi nhan chi phi chuyen di, chua bi tru tu dong trong ung dung.',
-            style: const TextStyle(fontSize: 12, color: AppTheme.outline),
+          Row(
+            children: [
+              const Icon(
+                Icons.account_balance_wallet_outlined,
+                size: 14,
+                color: AppTheme.outline,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'Thanh toan: ${booking.paymentLabel}',
+                  style: const TextStyle(fontSize: 12, color: AppTheme.outline),
+                ),
+              ),
+            ],
           ),
           if ((booking.isPending || booking.isConfirmed) && !canRateNow) ...[
             const SizedBox(height: 12),

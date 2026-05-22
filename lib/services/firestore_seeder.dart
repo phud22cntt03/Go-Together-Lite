@@ -1,21 +1,39 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../data/mock_data.dart';
 
 /// Seed sample Firestore data for local development.
+///
+/// If Firestore rules deny unauthenticated reads/writes, seeding is skipped so
+/// the app can still boot and show the login screen.
 class FirestoreSeeder {
   static final _db = FirebaseFirestore.instance;
 
   static Future<bool> _collectionHasData(String collection) async {
-    final snap = await _db.collection(collection).limit(1).get();
-    return snap.docs.isNotEmpty;
+    try {
+      final snap = await _db.collection(collection).limit(1).get();
+      return snap.docs.isNotEmpty;
+    } on FirebaseException catch (e) {
+      if (_isPermissionDenied(e)) {
+        return true;
+      }
+      rethrow;
+    }
   }
 
   static Future<void> seedAll() async {
-    await _seedTrips();
-    await _seedCommunityPosts();
-    await _seedVehicles();
-    await _seedNotifications();
-    await _seedReports();
+    try {
+      await _seedTrips();
+      await _seedCommunityPosts();
+      await _seedVehicles();
+      await _seedNotifications();
+      await _seedReports();
+    } on FirebaseException catch (e) {
+      if (_isPermissionDenied(e)) {
+        return;
+      }
+      rethrow;
+    }
   }
 
   static Future<void> _seedTrips() async {
@@ -81,7 +99,7 @@ class FirestoreSeeder {
       'name': 'Toyota Vios',
       'licensePlate': '51A-123.45',
       'type': 'car',
-      'color': 'Trắng',
+      'color': 'Trang',
       'seats': 4,
       'isDefault': true,
       'createdAt': FieldValue.serverTimestamp(),
@@ -98,8 +116,8 @@ class FirestoreSeeder {
       'id': ref.id,
       'userId': 'seed_user_1',
       'type': 'booking_new',
-      'title': 'Đặt chỗ thành công',
-      'body': 'Bạn đã đặt 1 ghế cho chuyến đi Quận 7 -> Quận 1.',
+      'title': 'Dat cho thanh cong',
+      'body': 'Ban da dat 1 ghe cho chuyen di Quan 7 -> Quan 1.',
       'relatedId': '1',
       'isRead': false,
       'createdAt': FieldValue.serverTimestamp(),
@@ -121,5 +139,10 @@ class FirestoreSeeder {
       'createdAt': FieldValue.serverTimestamp(),
     });
     await batch.commit();
+  }
+
+  static bool _isPermissionDenied(FirebaseException e) {
+    return e.code == 'permission-denied' ||
+        e.message?.contains('Missing or insufficient permissions') == true;
   }
 }
