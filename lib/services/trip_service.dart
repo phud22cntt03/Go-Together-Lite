@@ -13,7 +13,10 @@ class TripService {
         .snapshots()
         .map(
           (snap) => _sortTrips(
-            snap.docs.map((d) => Trip.fromMap(d.id, d.data())).toList(),
+            snap.docs
+                .map((d) => Trip.fromMap(d.id, d.data()))
+                .where(_shouldShowInActiveLists)
+                .toList(),
           ),
         );
   }
@@ -61,7 +64,10 @@ class TripService {
     }
 
     final snap = await query.limit(50).get();
-    var results = snap.docs.map((d) => Trip.fromMap(d.id, d.data())).toList();
+    var results = snap.docs
+        .map((d) => Trip.fromMap(d.id, d.data()))
+        .where(_shouldShowInActiveLists)
+        .toList();
 
     if (fromQuery != null && fromQuery.isNotEmpty) {
       results = results
@@ -109,7 +115,10 @@ class TripService {
         .where('driverId', isEqualTo: driverId)
         .get();
     return _sortTrips(
-      snap.docs.map((d) => Trip.fromMap(d.id, d.data())).toList(),
+      snap.docs
+          .map((d) => Trip.fromMap(d.id, d.data()))
+          .where(_shouldShowInDriverLists)
+          .toList(),
     );
   }
 
@@ -151,5 +160,62 @@ class TripService {
       return a.pickupTime.compareTo(b.pickupTime);
     });
     return trips;
+  }
+
+  static bool _shouldShowInActiveLists(Trip trip) {
+    if (trip.status == 'completed' || trip.status == 'cancelled') {
+      return false;
+    }
+
+    final cutoff = DateTime.now().subtract(const Duration(days: 1));
+    final scheduledAt = _parseTripSchedule(trip.pickupTime);
+
+    if (scheduledAt != null) {
+      return !scheduledAt.isBefore(cutoff);
+    }
+
+    if (trip.createdAt != null) {
+      return !trip.createdAt!.isBefore(cutoff);
+    }
+
+    return true;
+  }
+
+  static bool _shouldShowInDriverLists(Trip trip) {
+    return _shouldShowInActiveLists(trip);
+  }
+
+  static DateTime? _parseTripSchedule(String raw) {
+    final match = RegExp(
+      r'(\d{1,2}):(\d{2})(?:\s*(AM|PM))?\s*-\s*(\d{1,2})/(\d{1,2})',
+      caseSensitive: false,
+    ).firstMatch(raw);
+
+    if (match == null) {
+      return null;
+    }
+
+    final hour = int.tryParse(match.group(1) ?? '');
+    final minute = int.tryParse(match.group(2) ?? '');
+    final period = match.group(3)?.toUpperCase();
+    final day = int.tryParse(match.group(4) ?? '');
+    final month = int.tryParse(match.group(5) ?? '');
+    if (hour == null || minute == null || day == null || month == null) {
+      return null;
+    }
+
+    final normalizedHour = _normalizeHour(hour, period);
+    final now = DateTime.now();
+    return DateTime(now.year, month, day, normalizedHour, minute);
+  }
+
+  static int _normalizeHour(int hour, String? period) {
+    if (period == null) {
+      return hour;
+    }
+    if (period == 'AM') {
+      return hour == 12 ? 0 : hour;
+    }
+    return hour == 12 ? 12 : hour + 12;
   }
 }

@@ -654,7 +654,7 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
       dropoffLat: _dropoffLocation!.latitude,
       dropoffLng: _dropoffLocation!.longitude,
       pickupTime:
-          '${_time.hour.toString().padLeft(2, '0')}:${_time.minute.toString().padLeft(2, '0')}',
+          '${_time.hour.toString().padLeft(2, '0')}:${_time.minute.toString().padLeft(2, '0')} - ${_date.day.toString().padLeft(2, '0')}/${_date.month.toString().padLeft(2, '0')}',
       pricePerSeat: price,
       totalSeats: _selectedVehicle!.seats,
       availableSeats: _seats,

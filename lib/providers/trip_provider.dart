@@ -20,6 +20,8 @@ class TripProvider extends ChangeNotifier {
   int _minSeats = 1;
   String _fromQuery = '';
   String _toQuery = '';
+  DateTime? _searchDate;
+  TimeOfDay? _searchTime;
   bool _searchUsesCurrentLocation = false;
   double? _currentLatitude;
   double? _currentLongitude;
@@ -35,6 +37,8 @@ class TripProvider extends ChangeNotifier {
   String get sortBy => _sortBy;
   String get vehicleFilter => _vehicleFilter;
   int get minSeats => _minSeats;
+  DateTime? get searchDate => _searchDate;
+  TimeOfDay? get searchTime => _searchTime;
   bool get searchUsesCurrentLocation => _searchUsesCurrentLocation;
   double get searchRadiusKm => _searchRadiusKm;
 
@@ -166,6 +170,8 @@ class TripProvider extends ChangeNotifier {
   Future<void> search(
     String from,
     String to, {
+    DateTime? date,
+    TimeOfDay? time,
     bool useCurrentLocation = false,
     double? currentLatitude,
     double? currentLongitude,
@@ -173,6 +179,8 @@ class TripProvider extends ChangeNotifier {
   }) async {
     _fromQuery = from.trim();
     _toQuery = to.trim();
+    _searchDate = date;
+    _searchTime = time;
     _searchUsesCurrentLocation = useCurrentLocation;
     _currentLatitude = currentLatitude;
     _currentLongitude = currentLongitude;
@@ -215,6 +223,10 @@ class TripProvider extends ChangeNotifier {
               ),
             )
             .toList();
+      }
+
+      if (_searchDate != null || _searchTime != null) {
+        results = results.where(_matchesScheduledTime).toList();
       }
 
       if (_searchUsesCurrentLocation &&
@@ -291,6 +303,8 @@ class TripProvider extends ChangeNotifier {
     _minSeats = 1;
     _fromQuery = '';
     _toQuery = '';
+    _searchDate = null;
+    _searchTime = null;
     _searchUsesCurrentLocation = false;
     _currentLatitude = null;
     _currentLongitude = null;
@@ -318,6 +332,94 @@ class TripProvider extends ChangeNotifier {
       );
     }
     return LocationSearchService.searchCoordinates(trip.pickupLocation);
+  }
+
+  bool _matchesScheduledTime(Trip trip) {
+    final scheduled = _parseTripDateTime(trip.pickupTime);
+
+    if (_searchDate != null) {
+      if (scheduled != null) {
+        final sameDay =
+            scheduled.day == _searchDate!.day &&
+            scheduled.month == _searchDate!.month &&
+            scheduled.year == _searchDate!.year;
+        if (!sameDay) {
+          return false;
+        }
+      } else {
+        return false;
+      }
+    }
+
+    if (_searchTime != null) {
+      final tripMinutes = scheduled != null
+          ? scheduled.hour * 60 + scheduled.minute
+          : _parseTimeOnlyInMinutes(trip.pickupTime);
+      if (tripMinutes == null) {
+        return false;
+      }
+
+      final selectedMinutes = _searchTime!.hour * 60 + _searchTime!.minute;
+      if (tripMinutes < selectedMinutes) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  DateTime? _parseTripDateTime(String raw) {
+    final fullMatch = RegExp(
+      r'(\d{1,2}):(\d{2})(?:\s*(AM|PM))?\s*-\s*(\d{1,2})/(\d{1,2})',
+      caseSensitive: false,
+    ).firstMatch(raw);
+
+    if (fullMatch != null) {
+      final hour = int.tryParse(fullMatch.group(1) ?? '');
+      final minute = int.tryParse(fullMatch.group(2) ?? '');
+      final period = fullMatch.group(3)?.toUpperCase();
+      final day = int.tryParse(fullMatch.group(4) ?? '');
+      final month = int.tryParse(fullMatch.group(5) ?? '');
+      if (hour == null || minute == null || day == null || month == null) {
+        return null;
+      }
+
+      final normalizedHour = _normalizeHour(hour, period);
+      final referenceYear = _searchDate?.year ?? DateTime.now().year;
+      return DateTime(referenceYear, month, day, normalizedHour, minute);
+    }
+
+    return null;
+  }
+
+  int? _parseTimeOnlyInMinutes(String raw) {
+    final match = RegExp(
+      r'(\d{1,2}):(\d{2})(?:\s*(AM|PM))?',
+      caseSensitive: false,
+    ).firstMatch(raw);
+    if (match == null) {
+      return null;
+    }
+
+    final hour = int.tryParse(match.group(1) ?? '');
+    final minute = int.tryParse(match.group(2) ?? '');
+    final period = match.group(3)?.toUpperCase();
+    if (hour == null || minute == null) {
+      return null;
+    }
+
+    final normalizedHour = _normalizeHour(hour, period);
+    return normalizedHour * 60 + minute;
+  }
+
+  int _normalizeHour(int hour, String? period) {
+    if (period == null) {
+      return hour;
+    }
+    if (period == 'AM') {
+      return hour == 12 ? 0 : hour;
+    }
+    return hour == 12 ? 12 : hour + 12;
   }
 
   @override

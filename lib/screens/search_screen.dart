@@ -26,7 +26,9 @@ class SearchScreen extends StatefulWidget {
 class _SearchScreenState extends State<SearchScreen> {
   final _fromCtrl = TextEditingController();
   final _toCtrl = TextEditingController();
+
   DateTime? _selectedDate;
+  TimeOfDay? _selectedTime;
   int _passengerCount = 1;
   String _selectedFilter = 'all';
   bool _hasSearched = false;
@@ -80,6 +82,8 @@ class _SearchScreenState extends State<SearchScreen> {
     await context.read<TripProvider>().search(
       _fromCtrl.text,
       _toCtrl.text,
+      date: _selectedDate,
+      time: _selectedTime,
       useCurrentLocation: _usesCurrentLocation,
       currentLatitude: _currentLatitude,
       currentLongitude: _currentLongitude,
@@ -107,6 +111,16 @@ class _SearchScreenState extends State<SearchScreen> {
     );
     if (picked != null) {
       setState(() => _selectedDate = picked);
+    }
+  }
+
+  Future<void> _pickTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: _selectedTime ?? const TimeOfDay(hour: 8, minute: 0),
+    );
+    if (picked != null) {
+      setState(() => _selectedTime = picked);
     }
   }
 
@@ -210,7 +224,8 @@ class _SearchScreenState extends State<SearchScreen> {
         _usesCurrentLocation = true;
         _currentLatitude = position.latitude;
         _currentLongitude = position.longitude;
-        _locationMessage = 'Đang hiển thị chuyến trong bán kính $_radiusKm km.';
+        _locationMessage =
+            'Đang hiển thị chuyến trong bán kính ${_radiusKm.toInt()} km.';
       });
       return true;
     } catch (_) {
@@ -253,7 +268,8 @@ class _SearchScreenState extends State<SearchScreen> {
     setState(() {
       _radiusKm = radiusKm;
       if (_usesCurrentLocation) {
-        _locationMessage = 'Đang hiển thị chuyến trong bán kính $_radiusKm km.';
+        _locationMessage =
+            'Đang hiển thị chuyến trong bán kính ${_radiusKm.toInt()} km.';
       }
     });
     context.read<TripProvider>().setSearchRadiusKm(radiusKm);
@@ -262,16 +278,30 @@ class _SearchScreenState extends State<SearchScreen> {
     }
   }
 
+  Future<void> _clearDateTime() async {
+    setState(() {
+      _selectedDate = null;
+      _selectedTime = null;
+    });
+    await _doSearch();
+  }
+
   String get _dateLabel {
-    if (_selectedDate == null) return 'Hôm nay';
+    if (_selectedDate == null) return 'Ngày bất kỳ';
     final d = _selectedDate!;
     return '${d.day}/${d.month}/${d.year}';
+  }
+
+  String get _timeLabel {
+    if (_selectedTime == null) return 'Giờ bất kỳ';
+    return _selectedTime!.format(context);
   }
 
   @override
   Widget build(BuildContext context) {
     final tripProvider = context.watch<TripProvider>();
     final trips = tripProvider.searchResults;
+    final hasDateTimeFilter = _selectedDate != null || _selectedTime != null;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -367,6 +397,13 @@ class _SearchScreenState extends State<SearchScreen> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: GestureDetector(
+                            onTap: _pickTime,
+                            child: _inputChip(Icons.schedule, _timeLabel),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: GestureDetector(
                             onTap: _showPassengerPicker,
                             child: _inputChip(
                               Icons.person,
@@ -374,7 +411,11 @@ class _SearchScreenState extends State<SearchScreen> {
                             ),
                           ),
                         ),
-                        const SizedBox(width: 8),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
                         GestureDetector(
                           onTap: _doSearch,
                           child: Container(
@@ -393,11 +434,7 @@ class _SearchScreenState extends State<SearchScreen> {
                             ),
                           ),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
+                        const SizedBox(width: 8),
                         Expanded(
                           child: OutlinedButton.icon(
                             onPressed: _isLocating ? null : _toggleCurrentLocation,
@@ -451,6 +488,23 @@ class _SearchScreenState extends State<SearchScreen> {
                         ),
                       ],
                     ),
+                    if (hasDateTimeFilter) ...[
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton(
+                          onPressed: _clearDateTime,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppTheme.primary,
+                            side: const BorderSide(color: AppTheme.primary),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: AppTheme.radiusLg,
+                            ),
+                          ),
+                          child: const Text('Xóa ngày giờ'),
+                        ),
+                      ),
+                    ],
                     if (_locationMessage != null) ...[
                       const SizedBox(height: 10),
                       Row(
@@ -766,12 +820,15 @@ class _SearchScreenState extends State<SearchScreen> {
         children: [
           Icon(icon, size: 14, color: AppTheme.outline),
           const SizedBox(width: 6),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: AppTheme.onSurfaceVariant,
+          Flexible(
+            child: Text(
+              label,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: AppTheme.onSurfaceVariant,
+              ),
             ),
           ),
         ],
@@ -782,7 +839,7 @@ class _SearchScreenState extends State<SearchScreen> {
   Widget _buildEmptyState() {
     final message = _usesCurrentLocation
         ? 'Không có chuyến nào trong bán kính ${_radiusKm.toInt()} km.'
-        : 'Thử thay đổi điểm đi, điểm đến hoặc bộ lọc.';
+        : 'Thử thay đổi điểm đi, điểm đến, ngày giờ hoặc bộ lọc.';
 
     return Center(
       child: Column(
